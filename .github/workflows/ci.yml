@@ -29,6 +29,8 @@ jobs:
           docker info
 
       - name: Verify
+        env:
+          api.version: '1.40'
         run: ./mvnw -B verify
 
       - name: Analyze with SonarCloud
