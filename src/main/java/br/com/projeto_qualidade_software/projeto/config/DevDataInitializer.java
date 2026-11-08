@@ -121,7 +121,8 @@ public class DevDataInitializer implements ApplicationRunner {
     }
 
     private void criarMaterialSeAusente(String nome) {
-        materialRepository.findByNomeIgnoreCase(nome)
-                .orElseGet(() -> materialRepository.save(new Material(null, nome)));
+        if (materialRepository.findByNomeIgnoreCase(nome).isEmpty()) {
+            materialRepository.save(new Material(null, nome));
+        }
     }
 }
