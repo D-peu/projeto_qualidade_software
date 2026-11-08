@@ -1,14 +1,14 @@
 # API de Reservas
 
 **Status:** Implementacao inicial
-**Versao do contrato:** 1.0.0
+**Versao do contrato:** 1.1.0
 **Contrato OpenAPI:** [openapi.yaml](openapi.yaml)
 
 ## Escopo
 
-A API expoe a consulta das salas cadastradas e os fluxos de reserva implementados: solicitacao, consulta, listagem por solicitante, alteracao de horario, cancelamento, aprovacao e rejeicao. O contrato OpenAPI pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
+A API autentica as contas cadastradas com senha protegida por hash e sessao HTTP, sem JWT. Ela expoe a consulta de salas e os fluxos de reserva implementados: solicitacao, consulta, listagem filtrada por estado ou solicitante, alteracao de horario, cancelamento, aprovacao e rejeicao. O frontend servido pelo Spring Boot usa essas rotas; os dados apresentados sao lidos e gravados no backend, nao em uma lista local. O contrato OpenAPI pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
 
-O projeto ainda nao possui arquivo Maven/Gradle nem configuracao do Springdoc. Portanto, este contrato documenta a API no formato consumido pelo Swagger, mas a interface Swagger UI nao esta publicada pela aplicacao.
+O repositorio possui configuracao Maven e aplicacao Spring Boot. A interface Swagger UI, entretanto, nao esta publicada pela aplicacao porque o Springdoc ainda nao foi configurado; este contrato pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
 
 ## Validacao das regras de negocio
 
@@ -17,21 +17,30 @@ Esta API implementa apenas parte das regras previstas no PRD. O comportamento ob
 | Regra | Situacao atual |
 |---|---|
 | RN01 - Intervalo | Implementada: o termino precisa ser posterior ao inicio. |
-| RN02 - Conflito de horario | Parcial: a verificacao cobre somente a sala, nao professores ou materiais. Intervalos adjacentes sao aceitos. |
-| RN03 - Concorrencia | Parcial: a solicitacao bloqueia a linha da sala com lock pessimista dentro de transacao; ainda falta teste de integracao concorrente com o banco usado pela aplicacao. |
+| RN02 - Conflito de horario | Implementada para sala, docentes associados e materiais associados. Intervalos adjacentes sao aceitos. |
+| RN03 - Concorrencia | Implementada para sala, docente e material: o serviço bloqueia os registros dos recursos em ordem determinística antes de verificar conflitos; testes PostgreSQL cobrem solicitações concorrentes em salas distintas que disputam o mesmo docente/material. |
 | RN04 - Bloqueio/manutencao | Parcial: a sala so e aceita quando `DISPONIVEL`; nao existem bloqueios por periodo nem gestao administrativa desses estados. |
 | RN05 - Aprovacao restrita | Parcial: a decisao aceita somente `RESPONSAVEL` ou `ADMINISTRADOR` e exige ID existente no cadastro correspondente. Ainda nao ha classificacao de recurso restrito para exigir aprovacao somente nesses casos. |
 | RN06 - Ciclo de estados | Parcial: a API permite `SOLICITADA` para `APROVADA` ou `REJEITADA`, e cancelamento de solicitadas/aprovadas. Nao implementa transicoes para `EM_USO`, `CONCLUIDA` ou `NAO_COMPARECEU`. |
 | RN07 - Protecao e auditoria | Parcial: a API nao oferece rota de exclusao, mas permite cancelar reservas `APROVADA` sem verificar se o horario de inicio ja passou. Tambem nao registra historico auditavel. O repository continua expondo operacoes de persistencia, portanto a regra nao e uma garantia do modelo inteiro. |
-| RN08 - Materiais | Nao implementada: nao ha entidades nem rotas para retirada e devolucao. |
+| RN08 - Materiais | Parcial: materiais podem ser associados a reservas e têm consulta de catálogo. Retirada e devolução ainda não são registradas. |
 
-Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`), e o backend exige correspondencia com o tipo salvo para o `solicitanteId`. Aprovacao/rejeicao exige `tipoAprovador` (`RESPONSAVEL` ou `ADMINISTRADOR`) e ID existente no cadastro indicado; a resposta identifica quem decidiu. Cargo e IDs ainda sao enviados pelo cliente e podem ser falsificados: essa validacao de consistencia nao substitui autenticacao/autorizacao baseada em identidade. Consulta por ID e listagem por `solicitanteId` tambem nao verificam propriedade autenticada.
+Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`), e o backend exige correspondencia com a conta autenticada. Aprovacao/rejeicao exige perfil autenticado de `RESPONSAVEL` ou `ADMINISTRADOR`; o ID e o tipo enviados no payload precisam corresponder a essa conta. Solicitantes so consultam e alteram suas proprias reservas; filas de aprovacao sao restritas a Responsavel e Administrador.
+
+Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor precisa ser uma conta existente do tipo `PROFESSOR`; quando quem solicita é Professor, sua própria conta é associada automaticamente, mesmo se a lista estiver vazia. Os materiais precisam existir no catálogo. O sistema rejeita sobreposição de intervalo em qualquer sala, docente ou material associado. As listas de catálogo não retornam e-mail nem senha.
 
 ## Rotas
 
 | Metodo | Rota | Finalidade | Sucesso |
 |---|---|---|---|
-| `GET` | `/api/salas` | Listar salas cadastradas com ID, capacidade e estado | `200 OK` |
+| `GET` | `/api/auth/csrf` | Obter token CSRF antes de autenticar | `200 OK` |
+| `POST` | `/api/auth/login` | Autenticar e iniciar sessão HTTP | `200 OK` |
+| `GET` | `/api/auth/me` | Consultar conta da sessão atual | `200 OK` |
+| `POST` | `/api/auth/logout` | Encerrar a sessão atual | `204 No Content` |
+| `GET` | `/api/salas` | Listar salas cadastradas | `200 OK` |
+| `GET` | `/api/professores` | Listar docentes cadastrados para alocação (somente ID e nome) | `200 OK` |
+| `GET` | `/api/materiais` | Listar materiais cadastrados para alocação | `200 OK` |
+| `GET` | `/api/reservas?status=SOLICITADA` | Listar reservas pelo estado | `200 OK` |
 | `POST` | `/api/reservas` | Solicitar reserva | `201 Created` |
 | `GET` | `/api/reservas/{reservaId}` | Consultar reserva | `200 OK` |
 | `GET` | `/api/reservas/solicitante/{solicitanteId}` | Listar reservas do solicitante | `200 OK` |
@@ -41,9 +50,24 @@ Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDEN
 | `POST` | `/api/reservas/{reservaId}/aprovacao` | Aprovar reserva solicitada | `200 OK` |
 | `POST` | `/api/reservas/{reservaId}/rejeicao` | Rejeitar reserva solicitada | `200 OK` |
 
-A consulta de salas retorna uma lista, que pode estar vazia. Cada item contém somente `id`, `capacidade` e `statusSala`; não inclui os demais dados da entidade.
+Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
 
-A listagem de reservas pendentes retorna somente reservas com status `SOLICITADA`, ordenadas por `solicitadoEm` em ordem crescente. Se não houver pendências, retorna `200 OK` com `[]`. Os itens mantêm o formato `ReservaResponse`.
+### Contas de demonstração
+
+Com `APP_SEED_ENABLED=true` (padrão local), a aplicação cria as contas e senhas demonstrativas listadas no README. As senhas são armazenadas com PBKDF2; registros antigos com a senha fictícia são atualizados pelo inicializador. Não use essas credenciais em produção.
+
+Exemplo de consulta da fila:
+
+```http
+GET /api/reservas?status=SOLICITADA
+Accept: application/json
+```
+
+`status` e obrigatorio em `GET /api/reservas` e aceita somente os valores do enum `StatusReserva`. A resposta contem os campos da reserva e o ID do solicitante, sem dados pessoais do cadastro.
+
+## Integracao do frontend
+
+O frontend autentica no servidor, restaura a sessão ao recarregar a página e mostra a área correspondente ao perfil retornado: Solicitante, Responsável ou Administrador. O ID e o tipo de solicitante/aprovador são derivados da conta autenticada; não existe mais configuração manual de IDs. A sessão expira após 30 minutos de inatividade. A tela de Administrador continua sem gestão de salas porque a API não oferece rotas de cadastro.
 
 ## Exemplos
 
@@ -59,6 +83,8 @@ Content-Type: application/json
   "salaId": 1,
   "solicitanteId": 12,
   "tipoSolicitante": "PROFESSOR",
+  "professorIds": [],
+  "materialIds": [1],
   "inicio": "2026-10-20T09:00:00",
   "fim": "2026-10-20T10:30:00"
 }
@@ -110,17 +136,18 @@ Os erros retornam JSON no formato `{"mensagem":"..."}`.
 | Status | Significado |
 |---|---|
 | `400 Bad Request` | Corpo invalido, campos obrigatorios ausentes ou intervalo incorreto |
-| `404 Not Found` | Reserva, sala, solicitante ou responsavel inexistente |
-| `403 Forbidden` | Cargo informado nao corresponde ao tipo salvo para o solicitante |
+| `404 Not Found` | Reserva, sala, solicitante, responsavel ou administrador inexistente |
+| `401 Unauthorized` | Credenciais inválidas ou sessão ausente/expirada |
+| `403 Forbidden` | Token CSRF inválido, perfil sem permissão, ou identidade da sessão não corresponde à operação |
 | `409 Conflict` | Sobreposicao de horario ou estado que nao permite a operacao |
 
 O intervalo exige `fim` posterior a `inicio`. Reservas solicitadas, aprovadas ou em uso ocupam a sala; salas indisponiveis nao aceitam novas solicitacoes.
 
 ## Seguranca e limites atuais
 
-Autenticacao/autorizacao vinculadas a identidade ainda nao estao implementadas. O backend verifica os papeis declarados contra os tipos permitidos e os IDs existentes, mas qualquer cliente ainda pode declarar o ID de outra pessoa. Consultas por ID/listagem tambem nao filtram pelo usuario autenticado. Nao exponha esta API a usuarios ou redes nao confiaveis antes de integrar autenticacao e autorizacao.
+O login usa sessão HTTP, cookies `HttpOnly` e `SameSite=Lax`, token CSRF em operações mutáveis, senhas PBKDF2 e autorização por perfil/posse da reserva. Configure `SESSION_COOKIE_SECURE=true` quando servir a aplicação por HTTPS. As contas seed são somente demonstração; cadastro/gestão de contas, recuperação de senha e autenticação institucional ainda não existem.
 
-O modelo atual permite verificar conflito apenas de sala. Conflitos com professores e materiais, historico auditavel e classificacao de recursos restritos dependem de entidades e regras ainda ausentes. A nova entidade de Administrador e o relacionamento de aprovacao podem exigir migracao do schema do banco.
+O modelo permite verificar conflitos de sala, docentes e materiais; contas do tipo Professor são reutilizadas como docentes e materiais têm entidade própria. Histórico auditável, classificação de recursos restritos, manutenção por período, CRUD administrativo e movimentação de materiais ainda dependem de regras e rotas ausentes. O Hibernate atualiza o schema em desenvolvimento; ambientes existentes devem deixar essa atualização ser aplicada antes de usar os novos campos/tabelas.
 
 ## Referencias
 

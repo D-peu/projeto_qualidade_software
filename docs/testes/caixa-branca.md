@@ -56,6 +56,17 @@ Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/api/ReservaCon
 
 Os casos CB-02, CB-03, CB-07, CB-09, CB-10 e CB-11 (`orElseThrow`) não são desvios no bytecode do método. O JaCoCo mede o lado da exceção como linhas da expressão lambda. Permanecem porque cada exceção define um 404 do contrato.
 
+### 2.3 Conflitos e bloqueios de recursos (RF08-RF09)
+
+| ID | Método | Verificação | Nível | INV |
+|---|---|---|---|---|
+| CB-63 | `validarAusenciaDeConflito` | Conflito de sala lança `IllegalStateException`; sem conflito, a verificação prossegue | U | INV-02 |
+| CB-64 | `validarAusenciaDeConflito` | Para cada docente associado, conflito lança `IllegalStateException`; sem conflito, prossegue | U | INV-02 |
+| CB-65 | `validarAusenciaDeConflito` | Para cada material associado, conflito lança `IllegalStateException`; sem conflito, prossegue | U | INV-02 |
+| CB-66 | `buscarProfessoresBloqueados` | Professor inexistente ou que não seja do tipo PROFESSOR é recusado; IDs válidos são bloqueados em ordem crescente | U | INV-02, INV-03 |
+| CB-67 | `buscarMateriaisBloqueados` | Material inexistente é recusado; IDs válidos são bloqueados em ordem crescente | U | INV-02, INV-03 |
+| CB-68 | Concorrência PostgreSQL | Solicitações paralelas para o mesmo professor ou material em salas diferentes aceitam no máximo uma reserva | I | INV-03 |
+
 ### 2.3 Condições compostas (MC/DC simplificado)
 
 **`validarIntervalo`, L243:** `inicio == null || fim == null || !fim.isAfter(inicio)`
@@ -196,7 +207,7 @@ Verifique também as consultas de leitura:
 |---|---|---|
 | `ReservaRepository.findByStatusOrderBySolicitadoEmAsc` | Nenhuma classe chama este método | Candidato a código morto. Remover ou justificar. |
 | `SalaRepository.findByStatusSalaAndCapacidadeGreaterThanEqualOrderByCapacidadeAsc` | Nenhuma classe chama este método | Candidato a código morto. Remover ou justificar. |
-| `findByEmailIgnoreCase` (Solicitante, Responsável, Administrador) | Nenhuma classe chama estes métodos; serão úteis quando houver autenticação | Manter com justificativa, ou testar quando houver uso. |
+| `findByEmailIgnoreCase` (Solicitante, Responsável, Administrador) | Usados por `AutenticacaoService` para localizar as contas no login | Manter e cobrir com testes de autenticação. |
 | `else` de `aprovarReserva` e `rejeitarReserva` | Inalcançável pela API (CB-22 e CB-25) | Cobrir com teste unitário direto. |
 | Checagens de nulo em `aprovar` e `rejeitar` da `Reserva` | Inalcançável pela API (CB-26 a CB-29) | Cobrir com teste unitário direto na entidade. |
 | `Reserva.aoCriar`, condição `status == null` | Ramo defensivo (CB-32) | Cobrir com `setStatus(null)`. |
@@ -229,7 +240,7 @@ Nenhum método passa de complexidade 4. Os de maior risco para ramos são `valid
 
 - **Linha:** cada caso executa pelo menos uma linha nova, ou reforça uma já coberta com outro dado.
 - **Ramo:** cada par TRUE/FALSE da tabela cobre os dois lados do desvio. Em `||` e `&&`, JaCoCo conta um desvio por condição; por isso há um caso por condição.
-- **Estimativa de ramos nas classes de regra:** `ReservaService` em torno de 28 ramos, `Reserva` em torno de 18 e `ReservaResponse` 4. O número oficial vem do relatório do JaCoCo.
+- **Estimativa de ramos nas classes de regra:** não recalculada após a inclusão da alocação de docentes e materiais; o número oficial deve vir do relatório do JaCoCo.
 - **Exclusões propostas, cada uma com justificativa:** DTOs (`record` sem lógica), `ProjetoApplication`, classes de configuração e `DevDataInitializer`. Serviços, entidades com regra e o handler de erros **não** são excluídos.
 - **Metas:** 80% de linhas e 70% de ramos no conjunto do projeto.
 
@@ -237,12 +248,12 @@ Nenhum método passa de complexidade 4. Os de maior risco para ramos são `valid
 
 | Classe de teste | Casos | Nível |
 |---|---|---|
-| `ReservaServiceTest` | CB-01 a CB-25 | U (Mockito) |
+| `ReservaServiceTest` | CB-01 a CB-25 e CB-63 a CB-67 | U (Mockito) |
 | `ReservaTest` | CB-26 a CB-33 | E |
 | `ReservaResponseTest` | CB-34 e CB-35 | E |
 | `ApiExceptionHandlerTest` | CB-36 a CB-42 | U e A |
 | `RestricoesPersistenciaIT` | CB-43 a CB-47 | I (Testcontainers) |
-| `ReservaRepositoryIT` | CB-48 a CB-58 | I (Testcontainers) |
+| `ReservaPostgresIntegrationTest` | CB-48 a CB-58 e CB-68 | I (Testcontainers) |
 
 ## 13. Prova de proteção (mutação manual)
 
@@ -268,5 +279,6 @@ Para cada regra crítica, a regra é quebrada temporariamente no código, o test
 | Consultas JPQL | CB-48 a CB-58 |
 | `SalaService` | CB-59 |
 | `ReservaService` e `ReservaController` (pendentes) | CB-60 a CB-62 |
-| Total | 62 identificadores de caso |
+| Recursos e concorrência (RF08-RF09) | CB-63 a CB-68 |
+| Total | 68 identificadores de caso |
 | Ramos só alcançáveis por teste direto | CB-22, CB-25, CB-26 a CB-29, CB-32, CB-41 |

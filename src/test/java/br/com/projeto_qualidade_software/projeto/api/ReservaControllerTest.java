@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ReservaController.class)
+@WebMvcTest(value = ReservaController.class, properties = "app.auth.enabled=false")
 @Import(ApiExceptionHandler.class)
 class ReservaControllerTest {
 
@@ -73,7 +73,8 @@ class ReservaControllerTest {
     void solicitarReservaRetornaCreatedLocationEReserva() throws Exception {
         Reserva reserva = reserva(StatusReserva.SOLICITADA);
         when(reservaService.solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM,
+                List.of(), List.of()
         )).thenReturn(reserva);
 
         mockMvc.perform(post("/api/reservas")
@@ -96,7 +97,8 @@ class ReservaControllerTest {
                 .andExpect(jsonPath("$.status").value("SOLICITADA"));
 
         verify(reservaService).solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM,
+                List.of(), List.of()
         );
     }
 
@@ -277,7 +279,8 @@ class ReservaControllerTest {
     @Test
     void solicitarReservaComTipoNaoAutorizadoRetornaForbidden() throws Exception {
         when(reservaService.solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM,
+                List.of(), List.of()
         )).thenThrow(new AcessoNegadoException(
                 "O cargo informado não corresponde ao perfil cadastrado do solicitante."
         ));
@@ -299,14 +302,16 @@ class ReservaControllerTest {
                 ));
 
         verify(reservaService).solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, FIM,
+                List.of(), List.of()
         );
     }
 
     @Test
     void solicitarReservaComIntervaloInvalidoRetornaBadRequest() throws Exception {
         when(reservaService.solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, INICIO
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, INICIO,
+                List.of(), List.of()
         )).thenThrow(new IllegalArgumentException("O término deve ser posterior ao início."));
 
         mockMvc.perform(post("/api/reservas")
@@ -325,7 +330,8 @@ class ReservaControllerTest {
                         .value("O término deve ser posterior ao início."));
 
         verify(reservaService).solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, INICIO
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, INICIO, INICIO,
+                List.of(), List.of()
         );
     }
 

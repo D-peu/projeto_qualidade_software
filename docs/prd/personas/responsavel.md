@@ -38,7 +38,7 @@ Perfil que aprova solicitacoes especiais, valida a alocacao de docentes e acompa
 
 ## Situacao atual da API
 
-As rotas de aprovacao e rejeicao recebem `usuarioId` e `tipoAprovador`; aceitam `RESPONSAVEL` ou `ADMINISTRADOR` e verificam se o ID existe no cadastro correspondente. A decisao fica associada ao Responsavel ou Administrador na reserva. Sem autenticacao, o cliente ainda pode declarar o ID de outra pessoa. O modelo tambem nao classifica recursos como restritos, entao permanece pendente exigir aprovacao apenas para esses recursos. Validacao de docentes, retirada/devolucao de materiais e historico auditavel tambem permanecem pendentes.
+O Responsável autentica-se com a própria conta. Aprovação e rejeição só são permitidas a sessões de Responsável ou Administrador, e o backend verifica o ID da sessão antes de registrar quem decidiu. O modelo não classifica recursos como restritos, então permanece pendente exigir aprovação apenas para esses recursos. Validação de docentes, retirada/devolução de materiais e histórico auditável também permanecem pendentes.
 
 ## Qualidade relevante - ISO/IEC 25010
 

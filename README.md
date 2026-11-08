@@ -4,7 +4,7 @@ Sistema de alocação de salas, professores e materiais sem conflitos de horári
 
 ## Estado atual
 
-A API de reservas de salas está implementada (solicitar, consultar, alterar horário, cancelar, aprovar e rejeitar). Os demais requisitos (autenticação, professores e materiais, bloqueios por período, auditoria, relatórios) estão pendentes. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
+A API de reservas está implementada para salas, com alocação opcional de docentes/materiais e login por sessão HTTP. Permanecem pendentes cadastro/gestão administrativa, bloqueios por período, auditoria, movimentação de materiais e relatórios. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
 
 ## Pré-requisitos
 
@@ -19,29 +19,51 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
-A aplicação sobe em `http://localhost:8080`. A interface estática em `/` ainda usa dados locais e não chama a API.
+A aplicação sobe em `http://localhost:8080`. A interface em `/` autentica contra as contas do banco usando sessão HTTP e limita as operações ao perfil autenticado. As credenciais de demonstração são apenas para desenvolvimento local; veja os limites em [`docs/api-reservas.md`](docs/api-reservas.md).
 
-Na primeira execução são criados dados fictícios: sala `1` (30 lugares), solicitante `1` (PROFESSOR), responsável `1` e administrador `1`. Para desligar, use `APP_SEED_ENABLED=false`.
+Na primeira execução são criadas contas de demonstração, uma sala (30 lugares) e dois materiais ("Projetor multimídia" e "Notebook"):
+
+| Perfil | E-mail | Senha |
+|---|---|---|
+| Professor | `professor@teste.local` | `Professor@123` |
+| Coordenador | `coordenador@teste.local` | `Coordenador@123` |
+| Responsável | `responsavel@teste.local` | `Responsavel@123` |
+| Administrador | `admin@teste.local` | `Admin@123` |
+
+As senhas são armazenadas com hash e o login mantém sessão HTTP; estes usuários e senhas são somente para demonstração local. Para desligar a criação/atualização das contas demonstrativas, use `APP_SEED_ENABLED=false`.
 
 Variáveis de ambiente opcionais: `DB_URL`, `DB_USER`, `DB_PASSWORD`.
+Para publicar atrás de HTTPS, configure `SESSION_COOKIE_SECURE=true`; mantenha `APP_AUTH_ENABLED=true`.
 
 ## Exemplo de uso da API
 
+As rotas protegidas exigem cookie de sessão e token CSRF. Para testar com `curl`, obtenha o token, autentique-se e envie o token retornado no login:
+
 ```
-curl -i -X POST http://localhost:8080/api/reservas \
-  -H "Content-Type: application/json" \
-  -d '{"salaId":1,"solicitanteId":1,"tipoSolicitante":"PROFESSOR","inicio":"2026-11-02T10:00:00","fim":"2026-11-02T11:00:00"}'
+curl -s -c cookies.txt http://localhost:8080/api/auth/csrf > csrf.json
+CSRF=$(jq -r .csrfToken csrf.json)
+curl -s -b cookies.txt -c cookies.txt -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+  -d '{"email":"professor@teste.local","senha":"Professor@123"}' > usuario.json
+CSRF=$(jq -r .csrfToken usuario.json)
+SOLICITANTE_ID=$(jq -r .id usuario.json)
+curl -i -b cookies.txt -X POST http://localhost:8080/api/reservas \
+  -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
+  -d "{\"salaId\":1,\"solicitanteId\":$SOLICITANTE_ID,\"tipoSolicitante\":\"PROFESSOR\",\"inicio\":\"2026-11-02T10:00:00\",\"fim\":\"2026-11-02T11:00:00\"}"
 ```
 
 Contrato completo em [`docs/openapi.yaml`](docs/openapi.yaml) e guia em [`docs/api-reservas.md`](docs/api-reservas.md).
+
+O formulário permite selecionar docentes e materiais. A conta Professor autenticada é sempre alocada à própria reserva; contas Coordenador podem selecionar docentes cadastrados. Para chamadas à API, consulte os catálogos autenticados `GET /api/professores` e `GET /api/materiais` e envie os IDs em `professorIds`/`materialIds`.
 
 ## Como testar
 
 ```
 ./mvnw -B verify
+node --test tests/*.test.js
 ```
 
-A suíte automatizada está em construção. O planejamento dos testes está em `docs/testes/`.
+A suíte automatizada inclui testes Java unitários e de integração com PostgreSQL via Testcontainers, além de testes Node do contrato frontend/API. O planejamento e os limites de cobertura estão em [`docs/testes/`](docs/testes/).
 
 ## SonarCloud
 

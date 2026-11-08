@@ -1,40 +1,214 @@
 openapi: 3.0.3
 info:
   title: API de Reservas de Salas
-  version: 1.0.0
+  version: 1.1.0
   description: >-
-    API para solicitar e acompanhar reservas de salas. Os papeis e identificadores
-    enviados sao comparados aos cadastros, mas nao comprovam a identidade de quem
-    chamou a API. As regras implementadas e suas limitacoes estao descritas em
-    api-reservas.md.
+    API para autenticar usuarios por sessao HTTP e solicitar/acompanhamento de
+    reservas de salas. Requisicoes mutaveis exigem token CSRF. As regras e
+    limitacoes estao descritas em api-reservas.md.
 servers:
   - url: http://localhost:8080
     description: Ambiente local
 tags:
+  - name: Autenticacao
+    description: Login, sessao e protecao CSRF
   - name: Salas
     description: Consulta de salas cadastradas
+  - name: Recursos
+    description: Consulta de docentes e materiais disponíveis
   - name: Reservas
     description: Solicitacao, consulta e decisao de reservas
+security:
+  - SessionCookie: []
 paths:
+  /api/auth/csrf:
+    get:
+      tags: [Autenticacao]
+      summary: Criar/obter token CSRF para iniciar o fluxo de login
+      operationId: obterTokenCsrf
+      security: []
+      responses:
+        '200':
+          description: Token CSRF associado à sessão do navegador
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfResponse'
+  /api/auth/login:
+    post:
+      tags: [Autenticacao]
+      summary: Autenticar e iniciar sessão
+      operationId: autenticar
+      security:
+        - CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Conta autenticada e sessão criada
+          headers:
+            Set-Cookie:
+              description: Cookie de sessão HttpOnly
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          description: E-mail ou senha inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '403':
+          description: Token CSRF inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+  /api/auth/me:
+    get:
+      tags: [Autenticacao]
+      summary: Consultar usuário autenticado
+      operationId: usuarioAtual
+      responses:
+        '200':
+          description: Identidade e perfil da sessão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Sessão ausente ou expirada
+  /api/auth/logout:
+    post:
+      tags: [Autenticacao]
+      summary: Encerrar a sessão atual
+      operationId: encerrarSessao
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sessão encerrada
+        '401':
+          description: Sessão ausente ou expirada
+        '403':
+          description: Token CSRF inválido
   /api/salas:
     get:
-      tags: [Salas]
-      summary: Listar salas cadastradas
+      tags: [Recursos]
+      summary: Listar salas
       operationId: listarSalas
       responses:
         '200':
-          description: Lista de salas; vazia quando não há salas cadastradas
+          description: Salas cadastradas
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Sala'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/professores:
+    get:
+      tags: [Recursos]
+      summary: Listar docentes disponíveis para alocação
+      description: Retorna somente ID e nome de contas do tipo PROFESSOR.
+      operationId: listarProfessores
+      responses:
+        '200':
+          description: Docentes ordenados pelo nome
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Professor'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/materiais:
+    get:
+      tags: [Salas]
+      summary: Listar materiais disponíveis para alocação
+      operationId: listarMateriais
+      responses:
+        '200':
+          description: Materiais ordenados pelo nome
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Material'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
   /api/reservas:
+    get:
+      tags: [Reservas]
+      summary: Listar reservas
+      operationId: listarReservas
+      parameters:
+        - name: status
+          in: query
+          required: true
+          description: Filtra as reservas pelo estado
+          schema:
+            type: string
+            enum:
+              - SOLICITADA
+              - APROVADA
+              - EM_USO
+              - CONCLUIDA
+              - REJEITADA
+              - CANCELADA
+              - NAO_COMPARECEU
+      responses:
+        '200':
+          description: Reservas ordenadas pela data da solicitação, da mais antiga para a mais recente
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Reserva'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
     post:
       tags: [Reservas]
       summary: Solicitar reserva de sala
       operationId: solicitarReserva
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -62,6 +236,8 @@ paths:
           $ref: '#/components/responses/AcessoNegado'
         '409':
           $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
   /api/reservas/pendentes:
     get:
       tags: [Reservas]
@@ -77,6 +253,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Reserva'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
   /api/reservas/{reservaId}:
     parameters:
       - $ref: '#/components/parameters/ReservaId'
@@ -93,6 +273,10 @@ paths:
                 $ref: '#/components/schemas/Reserva'
         '404':
           $ref: '#/components/responses/RecursoNaoEncontrado'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
   /api/reservas/solicitante/{solicitanteId}:
     parameters:
       - name: solicitanteId
@@ -115,6 +299,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Reserva'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
   /api/reservas/{reservaId}/horario:
     parameters:
       - $ref: '#/components/parameters/ReservaId'
@@ -122,6 +310,15 @@ paths:
       tags: [Reservas]
       summary: Alterar horario de reserva solicitada
       operationId: alterarHorarioReserva
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -139,8 +336,12 @@ paths:
           $ref: '#/components/responses/RequisicaoInvalida'
         '404':
           $ref: '#/components/responses/RecursoNaoEncontrado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
         '409':
           $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
   /api/reservas/{reservaId}/cancelamento:
     parameters:
       - $ref: '#/components/parameters/ReservaId'
@@ -148,6 +349,15 @@ paths:
       tags: [Reservas]
       summary: Cancelar reserva solicitada ou aprovada
       operationId: cancelarReserva
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -165,8 +375,12 @@ paths:
           $ref: '#/components/responses/RequisicaoInvalida'
         '404':
           $ref: '#/components/responses/RecursoNaoEncontrado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
         '409':
           $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
   /api/reservas/{reservaId}/aprovacao:
     parameters:
       - $ref: '#/components/parameters/ReservaId'
@@ -174,6 +388,15 @@ paths:
       tags: [Reservas]
       summary: Aprovar reserva solicitada
       operationId: aprovarReserva
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -195,6 +418,8 @@ paths:
           $ref: '#/components/responses/AcessoNegado'
         '409':
           $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
   /api/reservas/{reservaId}/rejeicao:
     parameters:
       - $ref: '#/components/parameters/ReservaId'
@@ -202,6 +427,15 @@ paths:
       tags: [Reservas]
       summary: Rejeitar reserva solicitada
       operationId: rejeitarReserva
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -223,7 +457,18 @@ paths:
           $ref: '#/components/responses/AcessoNegado'
         '409':
           $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
 components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: JSESSIONID
+    CsrfToken:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
   parameters:
     ReservaId:
       name: reservaId
@@ -234,20 +479,26 @@ components:
         format: int64
         minimum: 1
   responses:
+    NaoAutenticado:
+      description: Sessão ausente ou expirada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
     RequisicaoInvalida:
-      description: Dados ausentes, malformados ou com intervalo invalido
+      description: Dados ou parametro ausente/invalido, ou intervalo invalido
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Erro'
     RecursoNaoEncontrado:
-      description: Reserva, sala, solicitante ou responsavel nao encontrado
+      description: Reserva, sala, solicitante, responsavel ou administrador nao encontrado
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Erro'
     AcessoNegado:
-      description: Cargo informado nao corresponde ao perfil cadastrado
+      description: Perfil sem permissão, token CSRF inválido ou identidade informada diferente da sessão
       content:
         application/json:
           schema:
@@ -259,6 +510,43 @@ components:
           schema:
             $ref: '#/components/schemas/Erro'
   schemas:
+    LoginRequest:
+      type: object
+      required: [email, senha]
+      properties:
+        email:
+          type: string
+          format: email
+        senha:
+          type: string
+          format: password
+    CsrfResponse:
+      type: object
+      required: [csrfToken]
+      properties:
+        csrfToken:
+          type: string
+    AuthResponse:
+      type: object
+      required: [id, nome, email, perfil, csrfToken]
+      properties:
+        id:
+          type: integer
+          format: int64
+        nome:
+          type: string
+        email:
+          type: string
+          format: email
+        perfil:
+          type: string
+          enum: [SOLICITANTE, RESPONSAVEL, ADMINISTRADOR]
+        tipoSolicitante:
+          type: string
+          nullable: true
+          enum: [PROFESSOR, COORDENADOR]
+        csrfToken:
+          type: string
     Sala:
       type: object
       required: [id, capacidade, statusSala]
@@ -272,6 +560,24 @@ components:
         statusSala:
           type: string
           enum: [DISPONIVEL, RESERVADA, EM_MANUTENCAO]
+    Professor:
+      type: object
+      required: [id, nome]
+      properties:
+        id:
+          type: integer
+          format: int64
+        nome:
+          type: string
+    Material:
+      type: object
+      required: [id, nome]
+      properties:
+        id:
+          type: integer
+          format: int64
+        nome:
+          type: string
     SolicitarReservaRequest:
       type: object
       required: [salaId, solicitanteId, tipoSolicitante, inicio, fim]
@@ -293,6 +599,21 @@ components:
         fim:
           type: string
           format: date-time
+        professorIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+            minimum: 1
+          description: IDs de contas PROFESSOR envolvidas. A conta solicitante é adicionada automaticamente quando tipoSolicitante é PROFESSOR.
+        materialIds:
+          type: array
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+            minimum: 1
     AlterarHorarioRequest:
       type: object
       required: [solicitanteId, inicio, fim]
@@ -372,6 +693,16 @@ components:
           type: string
           format: date-time
           nullable: true
+        professorIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+        materialIds:
+          type: array
+          items:
+            type: integer
+            format: int64
     Erro:
       type: object
       required: [mensagem]

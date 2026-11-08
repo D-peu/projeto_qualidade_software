@@ -5,9 +5,11 @@
 Estes casos verificam a API de reservas **somente pelo contrato** (`docs/openapi.yaml` e `docs/api-reservas.md`) e pelas regras do `docs/testes/inventario-regras.md`. Nenhum resultado esperado depende da estrutura interna das classes.
 
 - **Ferramenta prevista:** REST-assured contra a aplicação conectada ao PostgreSQL (Testcontainers). Os casos também podem ser executados manualmente com `curl`.
+- **Contas para teste manual:** usar a tabela de contas demonstrativas do [README](../../README.md); os usuários de Professor, Coordenador, Responsável e Administrador só são semeados com `APP_SEED_ENABLED=true`. Casos automatizados devem criar seus próprios usuários sintéticos.
 - **Técnicas:** valor limite (VL), partição de equivalência (PE), tabela de decisão (TD) e transição de estado (TR).
 - **Identificação:** cada caso tem ID `CP-nn` e liga a uma linha do inventário (INV-nn). As transições têm IDs `TR-nn` e a tabela de decisão `TD-nn`.
 - **Códigos HTTP:** 201, 200, 400, 403, 404 e 409, conforme o contrato. O corpo de erro tem o campo `mensagem`.
+- **Autenticação:** antes dos casos protegidos, autentique o perfil indicado no caso, mantenha o cookie da sessão e envie o `csrfToken` no cabeçalho `X-CSRF-Token` em operações mutáveis. IDs e tipos do payload devem corresponder à conta autenticada.
 - **Resultado esperado** vem do contrato e das regras. Onde o contrato é omisso, o caso é marcado com **[verificar]**.
 - **Decisão pendente:** casos que dependem de decisão do grupo registrada em `estrategia.md` levam esta marca.
 
@@ -22,6 +24,7 @@ Dados sintéticos, recriados antes de cada caso ou suíte.
 | S3 | Sala em estado RESERVADA |
 | S4 | Outra sala DISPONIVEL |
 | P1, P2 | Solicitantes do tipo PROFESSOR |
+| M1, M2 | Materiais cadastrados |
 | C1 | Solicitante do tipo COORDENADOR |
 | R1 | Responsável cadastrado |
 | A1 | Administrador cadastrado |
@@ -43,6 +46,21 @@ Os IDs de R1 e A1 devem ser **diferentes**, para detectar confusão entre os doi
 |---|---|---|---|
 | CP-91 | PE | Reservas com status SOLICITADA, APROVADA, REJEITADA e CANCELADA e datas de solicitação distintas | 200; somente SOLICITADA, ordenadas por `solicitadoEm` crescente |
 | CP-92 | PE | Nenhuma reserva SOLICITADA | 200; corpo `[]` |
+
+## 2.3 Catálogo de recursos e alocação (RF08-RF09)
+
+Os endpoints de catálogo exigem sessão autenticada. As solicitações devem usar CSRF e as contas sintéticas devem ser criadas pela suíte.
+
+| ID | Técnica | Entrada | Resultado esperado |
+|---|---|---|---|
+| CP-93 | PE | GET `/api/professores`, com P1 e P2 cadastrados | 200; lista contém ID e nome dos professores, sem e-mail ou senha |
+| CP-94 | PE | GET `/api/materiais`, com M1 e M2 cadastrados | 200; lista contém ID e nome dos materiais |
+| CP-95 | PE | Solicitar reserva com professorIds `[P2]` e sem conflito | 201; resposta contém P2 em professorIds |
+| CP-96 | PE | Solicitar reserva com materialIds `[M1]` e sem conflito | 201; resposta contém M1 em materialIds |
+| CP-97 | PE | Sobreposição com reserva existente que usa o mesmo professor, em outra sala | 409; mensagem identifica conflito de professor |
+| CP-98 | PE | Sobreposição com reserva existente que usa o mesmo material, em outra sala | 409; mensagem identifica conflito de material |
+| CP-99 | VL | Solicitação por P1 omite P1 de professorIds | 201; a resposta inclui automaticamente P1 |
+| CP-100 | PE | Duas solicitações paralelas compartilham um professor ou material e intervalo, usando salas diferentes | No máximo uma retorna 201; a outra retorna 409 |
 
 ## 3. Intervalo da reserva (INV-01)
 
@@ -248,9 +266,9 @@ Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente 
 
 | Assunto | Motivo | Linha do inventário |
 |---|---|---|
-| Sobreposição de professor e material | Não fazem parte do modelo de reserva | INV-06 |
 | Bloqueios e manutenção por período | Não há agenda nem endpoint | INV-07 |
-| Autenticação e autorização por perfil | Não há autenticação; IDs e perfis vêm no corpo | INV-08 |
+| Bloqueios e manutenção por período | Não há agenda nem endpoint | INV-07 |
+| Autenticação e autorização por perfil | Login, sessão e regras de perfil têm testes Java; falta jornada E2E de navegador | INV-08 |
 | Auditoria e não exclusão | Não há auditoria | INV-13 |
 | Estados EM_USO, CONCLUIDA e NAO_COMPARECEU | Nenhum endpoint os alcança | INV-09 |
 | Notificação | Não há cliente de notificação | INV-16 |
@@ -261,7 +279,7 @@ Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não p
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-92) | 92 |
+| Casos de execução (CP-01 a CP-100) | 100 |
 | Transições de estado (TR-01 a TR-16) | 16 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
 | Executáveis só com estado preparado no banco | CP-38 e CP-45 |

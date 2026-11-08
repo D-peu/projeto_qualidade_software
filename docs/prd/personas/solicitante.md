@@ -40,7 +40,7 @@ Professor ou coordenador universitario que consulta disponibilidade e cria, alte
 
 ## Situacao atual da API
 
-Na criacao, a API recebe `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`) e exige correspondencia com o tipo persistido. Alteracao e cancelamento comparam o ID informado ao solicitante associado a reserva. Ainda nao ha login/token que confirme a identidade; IDs podem ser falsificados, e consultas nao sao restringidas ao dono autenticado. Portanto, as permissoes desta persona ainda nao estao prontas para uso externo. Conflitos de horario cobrem apenas salas; reservas de professores e materiais ainda nao estao no modelo.
+O solicitante entra com sua conta de Professor ou Coordenador. O backend usa a sessão para obter seu ID e tipo, e só permite consultar, alterar ou cancelar as próprias reservas; os IDs enviados pelo cliente não substituem a identidade da sessão. As contas iniciais são demonstrativas. As reservas verificam conflito de horário para sala, docentes associados e materiais associados. Professores são contas existentes do tipo PROFESSOR; materiais estão disponíveis em catálogo e podem ser associados à reserva.
 
 ## Qualidade relevante - ISO/IEC 25010
 

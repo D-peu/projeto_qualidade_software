@@ -37,7 +37,7 @@ Perfil responsavel pela administracao dos cadastros e da disponibilidade dos rec
 
 ## Situacao atual da API
 
-O backend representa Administradores no cadastro e permite que um ID existente com `tipoAprovador: ADMINISTRADOR` aprove ou rejeite reserva solicitada. Isso nao autentica quem enviou o ID e nao constitui controle de acesso seguro. Ainda nao existem rotas administrativas para cadastrar usuarios/recursos, bloqueios ou periodos de manutencao; o servico apenas impede solicitacao quando o estado da sala nao e `DISPONIVEL`.
+O Administrador autentica-se com a própria conta e pode decidir reservas; a sessão, e não o ID enviado pelo cliente, define o perfil e o usuário. As rotas administrativas para cadastrar usuários/recursos, bloqueios ou períodos de manutenção ainda não existem; o serviço apenas impede solicitação quando o estado da sala não é `DISPONIVEL`.
 
 ## Qualidade relevante - ISO/IEC 25010
 

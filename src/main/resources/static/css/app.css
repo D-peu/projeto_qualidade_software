@@ -475,6 +475,13 @@ select:focus-visible {
   font-size: 11px;
 }
 
+#identity-summary {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .demo-badge {
   display: inline-flex;
   align-items: center;
@@ -1071,6 +1078,14 @@ select:focus-visible {
   line-height: 1.55;
 }
 
+.info-banner.is-error {
+  align-items: center;
+  justify-content: space-between;
+  border-color: #efc7c4;
+  color: var(--red-700);
+  background: var(--red-100);
+}
+
 .info-banner strong {
   color: #764800;
 }
@@ -1239,6 +1254,26 @@ select:focus-visible {
   font-size: 12px;
 }
 
+.field select {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--ink-200);
+  border-radius: 7px;
+  color: var(--ink-900);
+  background: var(--white);
+  font-size: 12px;
+}
+
+.resource-field {
+  margin-top: 13px;
+}
+
+.resource-field small {
+  color: var(--ink-500);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
 .form-error {
   min-height: 16px;
   margin: 9px 0 0;
@@ -1404,21 +1439,15 @@ select:focus-visible {
   }
 
   .demo-badge {
-    padding: 6px 8px;
-    font-size: 9px;
+    display: none;
   }
 
   .topbar-date {
     display: none;
   }
 
-  .account-name {
+  #identity-summary {
     display: none;
-  }
-
-  .logout-button {
-    min-height: 31px;
-    padding: 0 8px;
   }
 
   .page-content {
