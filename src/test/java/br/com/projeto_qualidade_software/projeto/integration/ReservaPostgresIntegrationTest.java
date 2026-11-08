@@ -1,12 +1,14 @@
 package br.com.projeto_qualidade_software.projeto.integration;
 
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
+import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
 import br.com.projeto_qualidade_software.projeto.entities.Solicitante;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
@@ -54,6 +56,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest(properties = {
         "app.seed.enabled=false",
+        "app.auth.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @Testcontainers
@@ -90,6 +93,9 @@ class ReservaPostgresIntegrationTest {
     private SolicitanteRepository solicitanteRepository;
 
     @Autowired
+    private MaterialRepository materialRepository;
+
+    @Autowired
     private ReservaService reservaService;
 
     @Autowired
@@ -106,6 +112,72 @@ class ReservaPostgresIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deveImpedirSolicitacoesConcorrentesParaMesmoProfessorEmSalasDiferentes()
+            throws Exception {
+        FixtureConcorrenciaRecursos fixture = criarFixtureConcorrenciaRecursos();
+        try {
+            List<ResultadoConcorrencia> resultados = solicitarRecursosSimultaneamente(
+                    fixture,
+                    List.of(fixture.professorId()),
+                    List.of()
+            );
+
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.reserva() != null)
+                    .count());
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.conflito() != null)
+                    .count());
+            assertEquals(
+                    1L,
+                    reservaRepository.contarConflitosPorProfessor(
+                            fixture.professorId(),
+                            STATUS_QUE_OCUPAM_SALA,
+                            INICIO,
+                            FIM,
+                            null
+                    )
+            );
+        } finally {
+            limparFixtureConcorrenciaRecursos(fixture);
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void deveImpedirSolicitacoesConcorrentesParaMesmoMaterialEmSalasDiferentes()
+            throws Exception {
+        FixtureConcorrenciaRecursos fixture = criarFixtureConcorrenciaRecursos();
+        try {
+            List<ResultadoConcorrencia> resultados = solicitarRecursosSimultaneamente(
+                    fixture,
+                    List.of(),
+                    List.of(fixture.materialId())
+            );
+
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.reserva() != null)
+                    .count());
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.conflito() != null)
+                    .count());
+            assertEquals(
+                    1L,
+                    reservaRepository.contarConflitosPorMaterial(
+                            fixture.materialId(),
+                            STATUS_QUE_OCUPAM_SALA,
+                            INICIO,
+                            FIM,
+                            null
+                    )
+            );
+        } finally {
+            limparFixtureConcorrenciaRecursos(fixture);
+        }
     }
 
     @Test
@@ -129,6 +201,48 @@ class ReservaPostgresIntegrationTest {
         assertEquals(sala.getId(), recuperada.getSala().getId());
         assertEquals(solicitante.getId(), recuperada.getSolicitante().getId());
         assertNotNull(recuperada.getSolicitadoEm());
+    }
+
+    private List<ResultadoConcorrencia> solicitarRecursosSimultaneamente(
+            FixtureConcorrenciaRecursos fixture,
+            List<Long> professorIds,
+            List<Long> materialIds
+    ) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch prontas = new CountDownLatch(2);
+        CountDownLatch iniciar = new CountDownLatch(1);
+        List<Future<ResultadoConcorrencia>> tarefas = new ArrayList<>(2);
+        try {
+            tarefas.add(executor.submit(() -> solicitarAposBarreira(
+                    fixture.primeiraSalaId(),
+                    fixture.primeiroSolicitanteId(),
+                    TipoSolicitante.COORDENADOR,
+                    professorIds,
+                    materialIds,
+                    prontas,
+                    iniciar
+            )));
+            tarefas.add(executor.submit(() -> solicitarAposBarreira(
+                    fixture.segundaSalaId(),
+                    fixture.segundoSolicitanteId(),
+                    TipoSolicitante.COORDENADOR,
+                    professorIds,
+                    materialIds,
+                    prontas,
+                    iniciar
+            )));
+
+            assertTrue(prontas.await(10, TimeUnit.SECONDS),
+                    "As duas threads devem estar prontas antes da liberação.");
+            iniciar.countDown();
+            return List.of(
+                    obterResultado(tarefas.get(0)),
+                    obterResultado(tarefas.get(1))
+            );
+        } finally {
+            iniciar.countDown();
+            encerrarExecutor(executor);
+        }
     }
 
     @Test
@@ -179,6 +293,74 @@ class ReservaPostgresIntegrationTest {
         );
 
         assertEquals(1L, conflitos);
+    }
+
+    @Test
+    void deveImpedirSobreposicaoDoMesmoProfessorEmSalasDiferentes() {
+        Sala salaExistente = salvarSala();
+        Sala outraSala = salvarSala();
+        Solicitante solicitanteExistente = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Solicitante solicitanteNovo = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Solicitante professor = salvarSolicitante(TipoSolicitante.PROFESSOR);
+        Reserva existente = salvarReserva(
+                salaExistente,
+                solicitanteExistente,
+                INICIO,
+                FIM,
+                StatusReserva.SOLICITADA
+        );
+        existente.setProfessores(Set.of(professor));
+        reservaRepository.saveAndFlush(existente);
+
+        IllegalStateException conflito = assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.solicitarReserva(
+                        outraSala.getId(),
+                        solicitanteNovo.getId(),
+                        TipoSolicitante.COORDENADOR,
+                        INICIO.plusMinutes(15),
+                        FIM.plusMinutes(15),
+                        List.of(professor.getId()),
+                        List.of()
+                )
+        );
+
+        assertTrue(conflito.getMessage().contains("professor"));
+    }
+
+    @Test
+    void deveImpedirSobreposicaoDoMesmoMaterialEmSalasDiferentes() {
+        Sala salaExistente = salvarSala();
+        Sala outraSala = salvarSala();
+        Solicitante solicitanteExistente = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Solicitante solicitanteNovo = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Material material = materialRepository.saveAndFlush(
+                new Material(null, "Material de integração")
+        );
+        Reserva existente = salvarReserva(
+                salaExistente,
+                solicitanteExistente,
+                INICIO,
+                FIM,
+                StatusReserva.SOLICITADA
+        );
+        existente.setMateriais(Set.of(material));
+        reservaRepository.saveAndFlush(existente);
+
+        IllegalStateException conflito = assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.solicitarReserva(
+                        outraSala.getId(),
+                        solicitanteNovo.getId(),
+                        TipoSolicitante.COORDENADOR,
+                        INICIO.plusMinutes(15),
+                        FIM.plusMinutes(15),
+                        List.of(),
+                        List.of(material.getId())
+                )
+        );
+
+        assertTrue(conflito.getMessage().contains("material"));
     }
 
     @ParameterizedTest(name = "intervalo adjacente {0} não gera conflito")
@@ -331,8 +513,73 @@ class ReservaPostgresIntegrationTest {
         });
     }
 
+    private FixtureConcorrenciaRecursos criarFixtureConcorrenciaRecursos() {
+        return novaTransacao().execute(status -> {
+            Sala primeiraSala = salvarSala();
+            Sala segundaSala = salvarSala();
+            Solicitante primeiroSolicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+            Solicitante segundoSolicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+            Solicitante professor = salvarSolicitante(TipoSolicitante.PROFESSOR);
+            Material material = materialRepository.saveAndFlush(
+                    new Material(null, UUID.randomUUID().toString())
+            );
+            return new FixtureConcorrenciaRecursos(
+                    primeiraSala.getId(),
+                    segundaSala.getId(),
+                    primeiroSolicitante.getId(),
+                    segundoSolicitante.getId(),
+                    professor.getId(),
+                    material.getId()
+            );
+        });
+    }
+
+    private void limparFixtureConcorrenciaRecursos(FixtureConcorrenciaRecursos fixture) {
+        novaTransacao().executeWithoutResult(status -> {
+            jdbcTemplate.update(
+                    "delete from reservas_professores where reserva_id in "
+                            + "(select id from reservas where sala_id in (?, ?))",
+                    fixture.primeiraSalaId(),
+                    fixture.segundaSalaId()
+            );
+            jdbcTemplate.update(
+                    "delete from reservas_materiais where reserva_id in "
+                            + "(select id from reservas where sala_id in (?, ?))",
+                    fixture.primeiraSalaId(),
+                    fixture.segundaSalaId()
+            );
+            jdbcTemplate.update(
+                    "delete from reservas where sala_id in (?, ?)",
+                    fixture.primeiraSalaId(),
+                    fixture.segundaSalaId()
+            );
+            jdbcTemplate.update(
+                    "delete from solicitantes where id in (?, ?, ?)",
+                    fixture.primeiroSolicitanteId(),
+                    fixture.segundoSolicitanteId(),
+                    fixture.professorId()
+            );
+            jdbcTemplate.update("delete from materiais where id = ?", fixture.materialId());
+            jdbcTemplate.update(
+                    "delete from salas where id in (?, ?)",
+                    fixture.primeiraSalaId(),
+                    fixture.segundaSalaId()
+            );
+        });
+    }
+
     private void limparFixtureConcorrencia(FixtureConcorrencia fixture) {
         novaTransacao().executeWithoutResult(status -> {
+            jdbcTemplate.update(
+                    "delete from reservas_professores where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    fixture.salaId()
+            );
+            jdbcTemplate.update(
+                    "delete from reservas_materiais where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    fixture.salaId()
+            );
             jdbcTemplate.update("delete from reservas where sala_id = ?", fixture.salaId());
             jdbcTemplate.update(
                     "delete from solicitantes where id = ?",
@@ -367,22 +614,26 @@ class ReservaPostgresIntegrationTest {
             );
         } finally {
             iniciar.countDown();
-            executor.shutdown();
-            boolean terminou;
-            try {
-                terminou = executor.awaitTermination(10, TimeUnit.SECONDS);
-            } catch (InterruptedException interrompida) {
-                executor.shutdownNow();
-                Thread.currentThread().interrupt();
-                throw interrompida;
-            }
-            if (!terminou) {
-                executor.shutdownNow();
-                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    throw new IllegalStateException(
-                            "As threads concorrentes não terminaram antes da limpeza."
-                    );
-                }
+            encerrarExecutor(executor);
+        }
+    }
+
+    private void encerrarExecutor(ExecutorService executor) throws InterruptedException {
+        executor.shutdown();
+        boolean terminou;
+        try {
+            terminou = executor.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException interrompida) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+            throw interrompida;
+        }
+        if (!terminou) {
+            executor.shutdownNow();
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException(
+                        "As threads concorrentes não terminaram antes da limpeza."
+                );
             }
         }
     }
@@ -393,6 +644,49 @@ class ReservaPostgresIntegrationTest {
             CountDownLatch prontas,
             CountDownLatch iniciar
     ) throws InterruptedException, TimeoutException {
+        return solicitarAposBarreira(
+                fixture.salaId(),
+                fixture.solicitanteId(),
+                TipoSolicitante.PROFESSOR,
+                List.of(),
+                List.of(),
+                prontas,
+                iniciar,
+                intervalo
+        );
+    }
+
+    private ResultadoConcorrencia solicitarAposBarreira(
+            Long salaId,
+            Long solicitanteId,
+            TipoSolicitante tipoSolicitante,
+            List<Long> professorIds,
+            List<Long> materialIds,
+            CountDownLatch prontas,
+            CountDownLatch iniciar
+    ) throws InterruptedException, TimeoutException {
+        return solicitarAposBarreira(
+                salaId,
+                solicitanteId,
+                tipoSolicitante,
+                professorIds,
+                materialIds,
+                prontas,
+                iniciar,
+                new Intervalo(INICIO, FIM)
+        );
+    }
+
+    private ResultadoConcorrencia solicitarAposBarreira(
+            Long salaId,
+            Long solicitanteId,
+            TipoSolicitante tipoSolicitante,
+            List<Long> professorIds,
+            List<Long> materialIds,
+            CountDownLatch prontas,
+            CountDownLatch iniciar,
+            Intervalo intervalo
+    ) throws InterruptedException, TimeoutException {
         prontas.countDown();
         if (!iniciar.await(10, TimeUnit.SECONDS)) {
             throw new TimeoutException("A liberação das solicitações concorrentes expirou.");
@@ -400,11 +694,13 @@ class ReservaPostgresIntegrationTest {
 
         try {
             Reserva reserva = reservaService.solicitarReserva(
-                    fixture.salaId(),
-                    fixture.solicitanteId(),
-                    TipoSolicitante.PROFESSOR,
+                    salaId,
+                    solicitanteId,
+                    tipoSolicitante,
                     intervalo.inicio(),
-                    intervalo.fim()
+                    intervalo.fim(),
+                    professorIds,
+                    materialIds
             );
             return new ResultadoConcorrencia(reserva, null);
         } catch (IllegalStateException conflito) {
@@ -441,6 +737,16 @@ class ReservaPostgresIntegrationTest {
     private record FixtureConcorrencia(Long salaId, Long solicitanteId) {
     }
 
+    private record FixtureConcorrenciaRecursos(
+            Long primeiraSalaId,
+            Long segundaSalaId,
+            Long primeiroSolicitanteId,
+            Long segundoSolicitanteId,
+            Long professorId,
+            Long materialId
+    ) {
+    }
+
     private record Intervalo(LocalDateTime inicio, LocalDateTime fim) {
     }
 
@@ -469,13 +775,17 @@ class ReservaPostgresIntegrationTest {
     }
 
     private Solicitante salvarSolicitante() {
+        return salvarSolicitante(TipoSolicitante.PROFESSOR);
+    }
+
+    private Solicitante salvarSolicitante(TipoSolicitante tipoSolicitante) {
         String identificador = UUID.randomUUID().toString();
         return solicitanteRepository.saveAndFlush(new Solicitante(
                 null,
                 "Solicitante de integração",
                 identificador + "@teste.local",
                 "senha-de-teste",
-                TipoSolicitante.PROFESSOR,
+                tipoSolicitante,
                 LocalDate.now(),
                 LocalDate.now()
         ));

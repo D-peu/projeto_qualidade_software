@@ -6,6 +6,8 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "reservas")
@@ -30,6 +32,22 @@ public class Reserva {
     @ManyToOne
     @JoinColumn(name = "administrador_id")
     private Administrador administrador;
+
+    @ManyToMany
+    @JoinTable(
+            name = "reservas_professores",
+            joinColumns = @JoinColumn(name = "reserva_id"),
+            inverseJoinColumns = @JoinColumn(name = "professor_id")
+    )
+    private Set<Solicitante> professores = new LinkedHashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "reservas_materiais",
+            joinColumns = @JoinColumn(name = "reserva_id"),
+            inverseJoinColumns = @JoinColumn(name = "material_id")
+    )
+    private Set<Material> materiais = new LinkedHashSet<>();
 
     @NotNull
     @Column(nullable = false)
@@ -192,6 +210,26 @@ public class Reserva {
 
     public void setAdministrador(Administrador administrador) {
         this.administrador = administrador;
+    }
+
+    public Set<Solicitante> getProfessores() {
+        return professores;
+    }
+
+    public void setProfessores(Set<Solicitante> professores) {
+        this.professores = professores == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(professores);
+    }
+
+    public Set<Material> getMateriais() {
+        return materiais;
+    }
+
+    public void setMateriais(Set<Material> materiais) {
+        this.materiais = materiais == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(materiais);
     }
 
     public LocalDateTime getInicio() {

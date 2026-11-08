@@ -18,7 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(SalaController.class)
+@WebMvcTest(value = SalaController.class, properties = "app.auth.enabled=false")
 class SalaControllerTest {
 
     @Autowired

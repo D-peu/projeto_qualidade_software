@@ -6,7 +6,7 @@
 
 O diagrama delimita as entidades persistidas atualmente pelo backend. Os tipos refletem os tipos Java encontrados no código, sem afirmar tipos SQL físicos, pois o SGBD e a configuração de persistência não estão identificados no repositório.
 
-Entidades para professores como recursos, materiais, bloqueios, movimentações e auditoria são necessidades do PRD, mas não existem no mapeamento JPA atual e, por isso, não são apresentadas como classes implementadas.
+Docentes reutilizam a entidade `Solicitante` com `TipoSolicitante.PROFESSOR`. Materiais possuem entidade própria. Bloqueios, movimentações e auditoria ainda não existem no mapeamento JPA.
 
 ---
 
@@ -57,6 +57,11 @@ classDiagram
         +LocalDateTime aprovadoEm
     }
 
+    class Material {
+        +Long id
+        +String nome
+    }
+
     class StatusSala {
         <<enumeration>>
         DISPONIVEL
@@ -83,6 +88,8 @@ classDiagram
 
     Sala "1" <-- "0..*" Reserva : sala
     Solicitante "1" <-- "0..*" Reserva : solicitante
+    Solicitante "0..*" <-- "0..*" Reserva : professores
+    Material "0..*" <-- "0..*" Reserva : materiais
     Responsavel "0..1" <-- "0..*" Reserva : decisor
     Administrador "0..1" <-- "0..*" Reserva : decisor
 
@@ -100,6 +107,7 @@ classDiagram
 | `Sala` | Capacidade mínima | A entidade valida capacidade mínima de 20; não foi identificada constraint SQL `CHECK`. | RF03, RF05 |
 | `Reserva` | Intervalo válido | O término deve ser posterior ao início; validado na entidade. | RF07 |
 | `Reserva` | Sem sobreposição por sala | O serviço consulta reservas conflitantes e usa bloqueio pessimista; não foi identificada constraint de exclusão no banco. | RF08, RF09 |
+| `Reserva` | Sem sobreposição por docente/material | O serviço consulta conflitos e bloqueia os registros dos recursos associados antes de gravar; não foi identificada constraint de exclusão no banco. | RF08, RF09 |
 | `Reserva` | Sala e solicitante obrigatórios | Ambas as associações estão mapeadas como obrigatórias. | RF06 |
 | `Reserva` | Decisor opcional | `responsavel_id` e `administrador_id` são opcionais. O serviço limpa a referência alternativa ao decidir, mas não há constraint de exclusividade declarada. | RF10 |
 | `Responsavel` | `email` único | A entidade declara unicidade na tabela `responsaveis`. | RF01 |
@@ -117,6 +125,8 @@ classDiagram
 | `Responsavel` | `responsaveis` | Mapeada pela entidade JPA. |
 | `Administrador` | `administradores` | Mapeada pela entidade JPA. |
 | `Reserva` | `reservas` | Mapeada com referências à sala, solicitante e possíveis decisores. |
+| `Material` | `materiais` | Mapeada; materiais reservados associam-se a `Reserva` por tabela de junção. |
+| Relação de docentes | `reservas_professores` | Associação many-to-many entre `Reserva` e `Solicitante`; somente registros PROFESSOR são válidos. |
 | `StatusSala`, `TipoSolicitante`, `StatusReserva` | Colunas enum persistidas como texto | `EnumType.STRING` no mapeamento. |
 
 > Ponto de atenção: os campos `password` refletem os atributos existentes nas entidades. O diagrama não confirma como os valores são armazenados nem substitui uma definição de segurança para credenciais.

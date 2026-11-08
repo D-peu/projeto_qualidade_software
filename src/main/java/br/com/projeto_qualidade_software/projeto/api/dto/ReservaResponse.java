@@ -4,6 +4,7 @@ import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ReservaResponse(
         Long id,
@@ -15,7 +16,9 @@ public record ReservaResponse(
         LocalDateTime fim,
         StatusReserva status,
         LocalDateTime solicitadoEm,
-        LocalDateTime aprovadoEm
+        LocalDateTime aprovadoEm,
+        List<Long> professorIds,
+        List<Long> materialIds
 ) {
 
     public static ReservaResponse de(Reserva reserva) {
@@ -29,7 +32,15 @@ public record ReservaResponse(
                 reserva.getFim(),
                 reserva.getStatus(),
                 reserva.getSolicitadoEm(),
-                reserva.getAprovadoEm()
+                reserva.getAprovadoEm(),
+                reserva.getProfessores().stream()
+                        .map(solicitante -> solicitante.getId())
+                        .sorted()
+                        .toList(),
+                reserva.getMateriais().stream()
+                        .map(material -> material.getId())
+                        .sorted()
+                        .toList()
         );
     }
 }

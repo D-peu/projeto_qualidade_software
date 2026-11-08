@@ -11,6 +11,7 @@ import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
@@ -56,6 +57,7 @@ class ReservaServiceTest {
     private SolicitanteRepository solicitanteRepository;
     private ResponsavelRepository responsavelRepository;
     private AdministradorRepository administradorRepository;
+    private MaterialRepository materialRepository;
     private ReservaService reservaService;
 
     @BeforeEach
@@ -65,12 +67,14 @@ class ReservaServiceTest {
         solicitanteRepository = mock(SolicitanteRepository.class);
         responsavelRepository = mock(ResponsavelRepository.class);
         administradorRepository = mock(AdministradorRepository.class);
+        materialRepository = mock(MaterialRepository.class);
         reservaService = new ReservaService(
                 reservaRepository,
                 salaRepository,
                 solicitanteRepository,
                 responsavelRepository,
-                administradorRepository
+                administradorRepository,
+                materialRepository
         );
     }
 
@@ -226,6 +230,10 @@ class ReservaServiceTest {
         when(salaRepository.buscarPorIdComBloqueio(SALA_ID)).thenReturn(Optional.of(sala));
         when(solicitanteRepository.findById(SOLICITANTE_ID))
                 .thenReturn(Optional.of(solicitante));
+        when(solicitanteRepository.buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        ))
+                .thenReturn(Optional.of(solicitante));
         when(reservaRepository.contarConflitos(
                 eq(SALA_ID),
                 eq(EnumSet.of(
@@ -322,6 +330,10 @@ class ReservaServiceTest {
                 .thenReturn(Optional.of(salaDisponivel()));
         when(solicitanteRepository.findById(SOLICITANTE_ID))
                 .thenReturn(Optional.of(solicitanteProfessor()));
+        when(solicitanteRepository.buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        ))
+                .thenReturn(Optional.of(solicitanteProfessor()));
 
         assertThrows(
                 AcessoNegadoException.class,
@@ -340,6 +352,10 @@ class ReservaServiceTest {
         when(salaRepository.buscarPorIdComBloqueio(SALA_ID))
                 .thenReturn(Optional.of(salaDisponivel()));
         when(solicitanteRepository.findById(SOLICITANTE_ID))
+                .thenReturn(Optional.of(solicitanteProfessor()));
+        when(solicitanteRepository.buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        ))
                 .thenReturn(Optional.of(solicitanteProfessor()));
         when(reservaRepository.contarConflitos(
                 eq(SALA_ID),

@@ -73,21 +73,22 @@ Esta matriz registra o que o backend existente realmente garante. Ela nao substi
 
 | Requisitos | Situacao no backend atual | Limite conhecido |
 |---|---|---|
-| RF01-RF02 | Pendente | Nao ha autenticacao nem autorizacao por perfil; IDs enviados pelo cliente nao comprovam identidade. |
-| RF03-RF05 | Pendente | Nao ha API para cadastros, pesquisa geral ou gestao de recursos. |
-| RF06 | Parcial | Criacao exige `tipoSolicitante` igual ao tipo persistido (`PROFESSOR`/`COORDENADOR`); alteracao/cancelamento verificam o solicitante associado. Ainda nao ha autenticacao, entao IDs podem ser falsificados e consultas nao verificam propriedade. |
+| RF01-RF02 | Parcial | Login por e-mail/senha com contas persistidas, hash PBKDF2 e sessão HTTP; rotas de reserva aplicam perfil e posse. Cadastro/gestão de contas, recuperação de senha e autenticação institucional não existem. |
+| RF03-RF05 | Parcial | A API permite consultar salas, docentes (contas Professor) e materiais; cadastro/edição/desativação, gestão de usuários/bloqueios e pesquisa com filtros ainda não estão disponíveis. |
+| RF06 | Parcial | A interface autenticada cria, consulta, altera e cancela reservas via API; o servidor deriva a identidade da sessão e restringe solicitantes às próprias reservas. |
 | RF07 | Implementado | O intervalo rejeita inicio/fim ausentes e exige termino posterior ao inicio. |
-| RF08 | Parcial | A sobreposicao e verificada apenas para a sala. Professores e materiais ainda nao integram o modelo. |
-| RF09 | Parcial | A sala e bloqueada pessimisticamente durante a validacao e gravacao; falta teste de integracao que comprove o comportamento concorrente no banco alvo. |
-| RF10 | Parcial | Decisao aceita `RESPONSAVEL` ou `ADMINISTRADOR` com ID existente no cadastro correspondente e registra o decisor. Nao ha classificacao de recurso restrito nem autenticacao do chamador. |
+| RF08 | Implementado | A sobreposição é verificada para sala, docentes associados e materiais associados; contas Professor são reutilizadas como docentes e intervalos adjacentes são aceitos. |
+| RF09 | Implementado | Bloqueios pessimistas dos recursos em ordem determinística e testes PostgreSQL concorrentes verificam que sala, docente ou material compartilhado não é reservado em duplicidade. |
+| RF10 | Parcial | Decisão exige sessão de Responsável ou Administrador e registra o decisor. Não há classificação de recurso restrito para exigir aprovação somente nesses casos. |
 | RF11 | Parcial | A reserva rejeita sala cujo estado nao seja `DISPONIVEL`; nao ha agenda de bloqueios/manutencoes nem endpoint administrativo. |
 | RF12-RF14 | Pendente | Validacao de alocacao docente, movimentacao de material e auditoria nao estao implementadas. |
 | RF15 | Parcial | Os estados existem no enum, mas a API nao oferece o ciclo completo ate `EM_USO`, `CONCLUIDA` e `NAO_COMPARECEU`. |
-| RF16-RF17 | Pendente | Relatorios e interface nao estao implementados nesta API. |
-| RF18 | Implementado parcialmente | A API de reservas tem contrato OpenAPI e guia; os demais fluxos publicos ainda nao estao documentados. |
+| RF16 | Pendente | Relatorios ainda nao estao implementados. |
+| RF17 | Parcial | O frontend responsivo apresenta estados e erros da API e oferece telas por perfil autenticado; verificação em navegador real permanece pendente. |
+| RF18 | Implementado parcialmente | A API de autenticação, catálogos e reservas tem contrato OpenAPI e guia; fluxos mais amplos previstos no PRD ainda não foram implementados ou documentados. |
 | RF19 | Pendente | Notificacao simulada ou integracao externa ainda nao foi definida/implementada. |
 
-Detalhes de rotas e respostas: [documentacao da API de reservas](../api-reservas.md). A API nao deve ser considerada pronta para uso externo enquanto RF01-RF02 nao forem implementados.
+Detalhes de rotas e respostas: [documentacao da API de reservas](../api-reservas.md). RF01-RF02 têm implementação parcial de login por sessão e controle de acesso; não considerar o sistema pronto para produção enquanto os limites listados nesta matriz e os demais requisitos pendentes não forem tratados.
 
 ## Referencias
 

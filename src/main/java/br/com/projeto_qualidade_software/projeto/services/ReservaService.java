@@ -1,6 +1,7 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.Administrador;
+import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
@@ -11,19 +12,24 @@ import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
+import br.com.projeto_qualidade_software.projeto.security.ContextoAutenticacao;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Service
 public class ReservaService {
@@ -39,19 +45,22 @@ public class ReservaService {
     private final SolicitanteRepository solicitanteRepository;
     private final ResponsavelRepository responsavelRepository;
     private final AdministradorRepository administradorRepository;
+    private final MaterialRepository materialRepository;
 
     public ReservaService(
             ReservaRepository reservaRepository,
             SalaRepository salaRepository,
             SolicitanteRepository solicitanteRepository,
             ResponsavelRepository responsavelRepository,
-            AdministradorRepository administradorRepository
+            AdministradorRepository administradorRepository,
+            MaterialRepository materialRepository
     ) {
         this.reservaRepository = reservaRepository;
         this.salaRepository = salaRepository;
         this.solicitanteRepository = solicitanteRepository;
         this.responsavelRepository = responsavelRepository;
         this.administradorRepository = administradorRepository;
+        this.materialRepository = materialRepository;
     }
 
     @Transactional
@@ -62,6 +71,22 @@ public class ReservaService {
             LocalDateTime inicio,
             LocalDateTime fim
     ) {
+        return solicitarReserva(
+                salaId, solicitanteId, tipoSolicitante, inicio, fim, List.of(), List.of()
+        );
+    }
+
+    @Transactional
+    public Reserva solicitarReserva(
+            Long salaId,
+            Long solicitanteId,
+            TipoSolicitante tipoSolicitante,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            List<Long> professorIds,
+            List<Long> materialIds
+    ) {
+        ContextoAutenticacao.exigirSolicitante(solicitanteId, tipoSolicitante);
         validarIntervalo(inicio, fim);
         Sala sala = buscarSalaBloqueada(salaId);
         validarDisponibilidadeDaSala(sala);
@@ -74,11 +99,28 @@ public class ReservaService {
                     "O cargo informado não corresponde ao perfil cadastrado do solicitante."
             );
         }
-        validarAusenciaDeConflito(sala.getId(), inicio, fim, null);
+
+        Set<Long> idsProfessores = new TreeSet<>(
+                professorIds == null ? List.of() : professorIds
+        );
+        if (tipoSolicitante == TipoSolicitante.PROFESSOR) {
+            idsProfessores.add(solicitanteId);
+        }
+        Set<Solicitante> professores = buscarProfessoresBloqueados(idsProfessores);
+        Set<Material> materiais = buscarMateriaisBloqueados(materialIds);
+        validarAusenciaDeConflito(
+                sala.getId(),
+                idsProfessores,
+                materiais.stream().map(Material::getId)
+                        .collect(Collectors.toCollection(TreeSet::new)),
+                inicio, fim, null
+        );
 
         Reserva reserva = new Reserva();
         reserva.setSala(sala);
         reserva.setSolicitante(solicitante);
+        reserva.setProfessores(professores);
+        reserva.setMateriais(materiais);
         reserva.setInicio(inicio);
         reserva.setFim(fim);
         reserva.setStatus(StatusReserva.SOLICITADA);
@@ -92,6 +134,7 @@ public class ReservaService {
             LocalDateTime inicio,
             LocalDateTime fim
     ) {
+        ContextoAutenticacao.exigirSolicitante(solicitanteId);
         validarIntervalo(inicio, fim);
         Reserva reserva = buscarReservaBloqueada(reservaId);
         validarSolicitante(reserva, solicitanteId);
@@ -103,7 +146,15 @@ public class ReservaService {
 
         Sala sala = buscarSalaBloqueada(reserva.getSala().getId());
         validarDisponibilidadeDaSala(sala);
-        validarAusenciaDeConflito(sala.getId(), inicio, fim, reservaId);
+        Set<Long> professorIds = new TreeSet<>();
+        reserva.getProfessores().forEach(professor -> professorIds.add(professor.getId()));
+        Set<Long> materialIds = new TreeSet<>();
+        reserva.getMateriais().forEach(material -> materialIds.add(material.getId()));
+        buscarProfessoresBloqueados(professorIds);
+        buscarMateriaisBloqueados(materialIds);
+        validarAusenciaDeConflito(
+                sala.getId(), professorIds, materialIds, inicio, fim, reservaId
+        );
 
         reserva.setInicio(inicio);
         reserva.setFim(fim);
@@ -112,6 +163,7 @@ public class ReservaService {
 
     @Transactional
     public Reserva cancelarReserva(Long reservaId, Long solicitanteId) {
+        ContextoAutenticacao.exigirSolicitante(solicitanteId);
         Reserva reserva = buscarReservaBloqueada(reservaId);
         validarSolicitante(reserva, solicitanteId);
         if (reserva.getStatus() != StatusReserva.SOLICITADA
@@ -131,6 +183,7 @@ public class ReservaService {
             Long usuarioId,
             TipoAprovadorReserva tipoAprovador
     ) {
+        ContextoAutenticacao.exigirAprovador(usuarioId, tipoAprovador);
         Reserva reserva = buscarReservaBloqueada(reservaId);
         if (tipoAprovador == TipoAprovadorReserva.RESPONSAVEL) {
             reserva.aprovar(buscarResponsavel(usuarioId));
@@ -150,6 +203,7 @@ public class ReservaService {
             Long usuarioId,
             TipoAprovadorReserva tipoAprovador
     ) {
+        ContextoAutenticacao.exigirAprovador(usuarioId, tipoAprovador);
         Reserva reserva = buscarReservaBloqueada(reservaId);
         if (tipoAprovador == TipoAprovadorReserva.RESPONSAVEL) {
             reserva.rejeitar(buscarResponsavel(usuarioId));
@@ -165,22 +219,29 @@ public class ReservaService {
 
     @Transactional(readOnly = true)
     public Reserva buscarReserva(Long reservaId) {
-        return reservaRepository.findById(reservaId)
+        Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Reserva não encontrada: " + reservaId
                 ));
+        ContextoAutenticacao.exigirAcessoReserva(reserva);
+        return reserva;
     }
 
     @Transactional(readOnly = true)
     public List<Reserva> listarReservasDoSolicitante(Long solicitanteId) {
+        ContextoAutenticacao.exigirAcessoListaSolicitante(solicitanteId);
         return reservaRepository.findBySolicitanteIdOrderByInicioDesc(solicitanteId);
     }
 
     @Transactional(readOnly = true)
+    public List<Reserva> listarReservas(StatusReserva status) {
+        ContextoAutenticacao.exigirEquipe();
+        return reservaRepository.findByStatusOrderBySolicitadoEmAsc(status);
+    }
+
+    @Transactional(readOnly = true)
     public List<Reserva> listarReservasPendentes() {
-        return reservaRepository.findByStatusOrderBySolicitadoEmAsc(
-                StatusReserva.SOLICITADA
-        );
+        return listarReservas(StatusReserva.SOLICITADA);
     }
 
     private Reserva buscarReservaBloqueada(Long reservaId) {
@@ -195,6 +256,40 @@ public class ReservaService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Sala não encontrada: " + salaId
                 ));
+    }
+
+    private Set<Solicitante> buscarProfessoresBloqueados(Set<Long> professorIds) {
+        Set<Solicitante> professores = new LinkedHashSet<>();
+        for (Long professorId : professorIds) {
+            Solicitante professor = solicitanteRepository
+                    .buscarProfessorPorIdComBloqueio(
+                            professorId, TipoSolicitante.PROFESSOR
+                    )
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Professor não encontrado: " + professorId
+                    ));
+            professores.add(professor);
+        }
+        return professores;
+    }
+
+    private Set<Material> buscarMateriaisBloqueados(List<Long> materialIds) {
+        Set<Long> idsOrdenados = new TreeSet<>(
+                materialIds == null ? List.of() : materialIds
+        );
+        return buscarMateriaisBloqueados(idsOrdenados);
+    }
+
+    private Set<Material> buscarMateriaisBloqueados(Set<Long> materialIds) {
+        Set<Material> materiais = new LinkedHashSet<>();
+        for (Long materialId : materialIds) {
+            Material material = materialRepository.buscarPorIdComBloqueio(materialId)
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Material não encontrado: " + materialId
+                    ));
+            materiais.add(material);
+        }
+        return materiais;
     }
 
     private Responsavel buscarResponsavel(Long responsavelId) {
@@ -229,6 +324,8 @@ public class ReservaService {
 
     private void validarAusenciaDeConflito(
             Long salaId,
+            Set<Long> professorIds,
+            Set<Long> materialIds,
             LocalDateTime inicio,
             LocalDateTime fim,
             Long reservaId
@@ -243,6 +340,32 @@ public class ReservaService {
             throw new IllegalStateException(
                     "Já existe uma reserva para esta sala no intervalo informado."
             );
+        }
+        for (Long professorId : professorIds) {
+            if (reservaRepository.contarConflitosPorProfessor(
+                    professorId,
+                    STATUS_QUE_OCUPAM_SALA,
+                    inicio,
+                    fim,
+                    reservaId
+            ) > 0) {
+                throw new IllegalStateException(
+                        "Já existe uma reserva para este professor no intervalo informado."
+                );
+            }
+        }
+        for (Long materialId : materialIds) {
+            if (reservaRepository.contarConflitosPorMaterial(
+                    materialId,
+                    STATUS_QUE_OCUPAM_SALA,
+                    inicio,
+                    fim,
+                    reservaId
+            ) > 0) {
+                throw new IllegalStateException(
+                        "Já existe uma reserva para este material no intervalo informado."
+                );
+            }
         }
     }
 

@@ -50,6 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "app.seed.enabled=false",
+                "app.auth.enabled=false",
                 "spring.jpa.hibernate.ddl-auto=create-drop"
         }
 )
@@ -124,6 +125,16 @@ class ReservaApiPostgresE2ETest {
     @AfterEach
     void limparDados() {
         if (salaId != null) {
+            jdbcTemplate.update(
+                    "delete from reservas_professores where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    salaId
+            );
+            jdbcTemplate.update(
+                    "delete from reservas_materiais where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    salaId
+            );
             jdbcTemplate.update("delete from reservas where sala_id = ?", salaId);
         }
         if (solicitanteId != null) {
@@ -334,7 +345,9 @@ class ReservaApiPostgresE2ETest {
                 solicitanteId,
                 tipoSolicitante,
                 inicio,
-                fim
+                fim,
+                List.of(),
+                List.of()
         );
     }
 
