@@ -23,6 +23,11 @@ jobs:
           java-version: '21'
           cache: maven
 
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
       - name: Ensure Docker is available
         run: |
           sudo systemctl start docker
@@ -32,6 +37,22 @@ jobs:
         env:
           api.version: '1.40'
         run: ./mvnw -B verify
+
+      - name: Run Node tests
+        run: node --test tests/*.test.js
+
+      - name: Upload test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            target/surefire-reports/**
+            target/failsafe-reports/**
+            target/site/jacoco/**
+            target/jacoco.exec
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Analyze with SonarCloud
         if: ${{ vars.SONAR_ORGANIZATION != '' && vars.SONAR_PROJECT_KEY != '' }}
