@@ -1,6 +1,6 @@
 # Requisitos Funcionais - Sistema de Alocacao de Recursos
 
-Requisitos derivados da especificacao academica e das responsabilidades confirmadas para as personas. `RFxx` identifica um requisito funcional; `RNxx` identifica uma regra de negocio.
+Requisitos derivados da especificacao academica e das decisoes de escopo registradas no [PRD principal](../prd.md). `RFxx` identifica um requisito funcional; `RNxx` identifica uma regra de negocio.
 
 ## 1. Autenticacao e controle de acesso
 
@@ -13,7 +13,7 @@ Requisitos derivados da especificacao academica e das responsabilidades confirma
 
 | ID | Requisito | Persona |
 |---|---|---|
-| RF03 | A aplicacao deve permitir ao Administrador cadastrar, consultar, editar e desativar salas, professores e materiais. | Administrador |
+| RF03 | A aplicacao deve permitir ao Administrador cadastrar, consultar, editar e desativar salas, professores e materiais, incluindo a classificacao demonstrativa de recursos que exigem cuidado especial. | Administrador |
 | RF04 | A aplicacao deve permitir ao Administrador gerenciar usuarios, bloqueios de recursos e periodos de manutencao. | Administrador |
 | RF05 | A aplicacao deve permitir pesquisar recursos por tipo, capacidade, localizacao, competencia e disponibilidade. | Solicitante, Responsavel, Administrador |
 
@@ -21,12 +21,12 @@ Requisitos derivados da especificacao academica e das responsabilidades confirma
 
 | ID | Requisito | Persona |
 |---|---|---|
-| RF06 | A aplicacao deve permitir ao Solicitante criar, alterar e cancelar suas reservas. | Solicitante |
-| RF07 | A aplicacao deve validar que o termino de cada reserva seja posterior ao inicio. | Solicitante, Responsavel, Administrador |
+| RF06 | A aplicacao deve permitir ao Solicitante criar, alterar e cancelar suas reservas conforme as regras de antecedencia, disponibilidade e aprovacao definidas neste documento. | Solicitante |
+| RF07 | A aplicacao deve validar data futura, inicio e termino em incrementos de 30 minutos, e termino posterior ao inicio. | Solicitante, Responsavel, Administrador |
 | RF08 | A aplicacao deve detectar sobreposicao de horario para cada sala, material ou professor envolvido na reserva. | Todas |
-| RF09 | A aplicacao deve proteger a confirmacao da reserva contra solicitacoes simultaneas conflitantes, aceitando no maximo uma reserva para o mesmo recurso e intervalo. | Todas |
-| RF10 | A aplicacao deve exigir aprovacao do Responsavel para solicitacoes que envolvam recursos classificados como restritos. | Solicitante, Responsavel |
-| RF11 | A aplicacao deve impedir novas reservas de recursos bloqueados ou em manutencao. | Solicitante, Administrador |
+| RF09 | A aplicacao deve proteger a confirmacao e a alteracao de data/horario contra operacoes simultaneas conflitantes. Solicitacoes pendentes podem coincidir, mas a disponibilidade deve ser revalidada na aprovacao, permitindo no maximo uma reserva confirmada por recurso em intervalos sobrepostos. | Todas |
+| RF10 | A aplicacao deve exigir aprovacao do Responsavel para toda reserva nova e alteracao de data/horario, independentemente da classificacao de restricao do recurso. | Solicitante, Responsavel |
+| RF11 | A aplicacao deve impedir novas reservas de recursos bloqueados ou em manutencao, preservar os registros existentes e alertar o Responsavel. | Solicitante, Responsavel, Administrador |
 | RF12 | A aplicacao deve permitir ao Responsavel validar a alocacao de docentes. | Responsavel |
 
 ## 4. Acompanhamento, auditoria e relatorios
@@ -34,40 +34,51 @@ Requisitos derivados da especificacao academica e das responsabilidades confirma
 | ID | Requisito | Persona |
 |---|---|---|
 | RF13 | A aplicacao deve registrar retirada e devolucao de materiais e equipamentos vinculados a uma reserva. | Responsavel |
-| RF14 | A aplicacao deve manter historico auditavel das alteracoes e mudancas de estado das reservas. | Responsavel, Administrador |
-| RF15 | A aplicacao deve suportar os estados solicitada, aprovada, em uso e concluida, e os estados alternativos rejeitada, cancelada e nao compareceu. | Todas |
+| RF14 | A aplicacao deve manter historico auditavel das alteracoes e mudancas de estado, incluindo cancelamentos, com usuario e data/hora. Justificativa de cancelamento nao e obrigatoria. | Responsavel, Administrador |
+| RF15 | A aplicacao deve suportar os estados solicitada, aprovada, em uso, concluida, rejeitada, cancelada, nao compareceu e expirada. Pedidos novos nao decididos ate o inicio expiram automaticamente; alteracoes pendentes expiram no inicio original e mantem a reserva original. | Todas |
 | RF16 | A aplicacao deve permitir consultar relatorios de utilizacao por recurso, carga horaria alocada e conflitos evitados. | Responsavel, Administrador |
-| RF17 | A aplicacao deve oferecer interface responsiva e mensagens de erro compreensiveis. | Todas |
+| RF17 | A aplicacao deve oferecer interface responsiva, mensagens de erro compreensiveis, navegacao por teclado, foco visivel e contraste legivel. | Todas |
 | RF18 | A aplicacao deve documentar a API ou os fluxos publicos do sistema. | Todas |
-| RF19 | A aplicacao deve permitir notificacao simulada ou integracao com API externa, conforme decisao de escopo a validar. | Todas |
+| RF19 | A aplicacao deve emitir notificacoes simuladas dentro do sistema, sem integracao com servico externo. | Todas |
 
 ## Regras de negocio
 
 | ID | Regra | Requisitos relacionados |
 |---|---|---|
-| RN01 | O termino deve ser posterior ao inicio da reserva. | RF07 |
-| RN02 | Reservas do mesmo recurso nao podem se sobrepor; recurso inclui sala, material e professor. | RF08 |
-| RN03 | Duas solicitacoes simultaneas conflitantes devem resultar em no maximo uma reserva aceita. | RF09 |
-| RN04 | Recursos em manutencao ou bloqueados nao podem ser reservados. | RF11 |
-| RN05 | Somente o perfil Responsavel aprova solicitacoes de recursos restritos. | RF10 |
+| RN01 | A reserva deve ser para uma data futura, com inicio e termino em incrementos de 30 minutos; o termino deve ser posterior ao inicio. Nao ha outros limites de antecedencia, horario institucional, duracao maxima ou recorrencia no escopo atual. | RF07 |
+| RN02 | Intervalos confirmados nao podem se sobrepor para a mesma sala, material ou professor. Intervalos adjacentes, em que o termino de um coincide com o inicio do seguinte, nao se sobrepoem. | RF08 |
+| RN03 | Solicitacoes pendentes podem se sobrepor. No momento de aprovar, a disponibilidade deve ser revalidada; no maximo uma solicitacao por recurso em intervalos sobrepostos pode ser aprovada. | RF09 |
+| RN04 | Recursos bloqueados ou em manutencao nao podem receber novas reservas. A manutencao nao cancela automaticamente reservas ou solicitacoes existentes e deve alertar o Responsavel. | RF04, RF11 |
+| RN05 | Toda reserva nova exige aprovacao do Responsavel. A classificacao de restricao e um atributo demonstrativo para identificar recursos que exigem cuidado especial, mas nao dispensa aprovacao para os demais. | RF03, RF10 |
 | RN06 | Os estados previstos sao solicitada, aprovada, em uso e concluida; estados alternativos incluem rejeitada, cancelada e nao compareceu. | RF14, RF15 |
-| RN07 | Reservas iniciadas nao podem ser apagadas; mudancas de estado devem gerar registro de auditoria. | RF14, RF15 |
+| RN07 | Reservas iniciadas nao podem ser apagadas. Toda mudanca de estado deve gerar auditoria; o registro minimo inclui usuario e data/hora. Justificativa de cancelamento nao e obrigatoria. | RF14, RF15 |
 | RN08 | Retiradas e devolucoes de materiais devem ser registradas. | RF13 |
+| RN09 | O Solicitante pode cancelar sua propria reserva ate duas horas antes do inicio, inclusive quando aprovada, sem aprovacao do Responsavel. Apos esse limite, o cancelamento pelo Solicitante nao e permitido. O cancelamento muda o estado e gera auditoria com usuario e data/hora. | RF06, RF14, RF15 |
+| RN10 | O Solicitante pode solicitar alteracao de data/horario ate duas horas antes do inicio original. Toda alteracao exige aprovacao do Responsavel e revalida conflitos de forma atomica; o horario original permanece valido ate a aprovacao. O Responsavel deve decidir ate o inicio original; caso contrario, o pedido expira e a reserva original permanece. | RF06, RF08, RF09, RF10 |
+| RN11 | Notificacoes sao simuladas e exibidas dentro da aplicacao, sem dependencia de API externa. | RF19 |
+| RN12 | Reserva nova em `SOLICITADA` sem decisao ate o inicio expira automaticamente, libera seus recursos e gera auditoria. Alteracao pendente expira no inicio original e preserva a reserva e o horario originais. | RF10, RF14, RF15 |
 
 ## Matriz de rastreabilidade
 
+Esta tabela resume apenas a relacao regra-requisito. A rastreabilidade completa para risco, cenario de teste e evidencia esta na [RTM](RTM.md).
+
 | Regra de negocio | Requisitos funcionais |
 |---|---|
-| RN01 - Validacao de intervalo | RF07 |
-| RN02 - Ausencia de sobreposicao | RF08 |
-| RN03 - Concorrencia | RF09 |
+| RN01 - Data e intervalo validos | RF07 |
+| RN02 - Ausencia de sobreposicao confirmada | RF08 |
+| RN03 - Concorrencia e revalidacao de aprovacao | RF09 |
 | RN04 - Bloqueio e manutencao | RF04, RF11 |
-| RN05 - Aprovacao de recurso restrito | RF10 |
+| RN05 - Aprovacao de todas as reservas | RF03, RF10 |
 | RN06 - Estados da reserva | RF14, RF15 |
 | RN07 - Nao exclusao e auditoria | RF14, RF15 |
 | RN08 - Movimentacao de materiais | RF13 |
+| RN09 - Limite de cancelamento | RF06, RF14, RF15 |
+| RN10 - Alteracao e aprovacao de horario | RF06, RF08, RF10 |
+| RN11 - Notificacoes simuladas | RF19 |
+| RN12 - Expiracao de pedidos pendentes | RF10, RF14, RF15 |
 
 ## Referencias
 
 - [Personas](personas/)
+- [PRD principal](../prd.md)
 - [Especificacao do projeto da disciplina](https://afonsolelis.github.io/aulas_senac/pages/qualidade2/especificacao-projeto.html)
