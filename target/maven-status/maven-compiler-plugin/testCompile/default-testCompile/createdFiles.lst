@@ -1,2 +1,3 @@
 br/com/projeto_qualidade_software/projeto/services/ReservaServiceTest$FixedTimeConfiguration.class
+br/com/projeto_qualidade_software/projeto/persistence/AlteracaoHorarioMigrationPostgresTest.class
 br/com/projeto_qualidade_software/projeto/services/ReservaServiceTest.class

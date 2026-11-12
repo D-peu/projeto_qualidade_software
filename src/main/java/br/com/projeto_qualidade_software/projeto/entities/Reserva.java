@@ -156,16 +156,8 @@ public class Reserva {
         return inicio;
     }
 
-    public void setInicio(LocalDateTime inicio) {
-        this.inicio = inicio;
-    }
-
     public LocalDateTime getFim() {
         return fim;
-    }
-
-    public void setFim(LocalDateTime fim) {
-        this.fim = fim;
     }
 
     public StatusReserva getStatus() {

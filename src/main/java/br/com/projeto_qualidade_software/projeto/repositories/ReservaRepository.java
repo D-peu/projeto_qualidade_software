@@ -22,6 +22,19 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     @Query("select reserva from Reserva reserva where reserva.sala.id = :salaId order by reserva.id")
     List<Reserva> findAllBySalaIdForUpdate(@Param("salaId") Long salaId);
 
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            update Reserva reserva
+            set reserva.inicio = :inicio, reserva.fim = :fim
+            where reserva.id = :reservaId and reserva.status = :status
+            """)
+    int atualizarHorarioAprovado(
+            @Param("reservaId") Long reservaId,
+            @Param("status") StatusReserva status,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fim") LocalDateTime fim
+    );
+
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update Reserva reserva

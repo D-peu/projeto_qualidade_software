@@ -1,5 +1,6 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
+import br.com.projeto_qualidade_software.projeto.entities.AlteracaoHorarioAplicada;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
@@ -7,6 +8,7 @@ import br.com.projeto_qualidade_software.projeto.entities.Solicitante;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
+import br.com.projeto_qualidade_software.projeto.repositories.AlteracaoHorarioAplicadaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,8 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.reset;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest(properties = {
         "spring.jpa.hibernate.ddl-auto=create-drop",
@@ -46,6 +53,12 @@ class ReservaServiceTest {
 
     @Autowired
     private ReservaRepository reservaRepository;
+
+    @Autowired
+    private AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository;
+
+    @MockitoSpyBean
+    private AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaSpy;
 
     @Autowired
     private ReservaService reservaService;
@@ -289,6 +302,236 @@ class ReservaServiceTest {
         assertEquals(StatusReserva.SOLICITADA, solicitada.getStatus());
     }
 
+    @Test
+    void appliesApprovedScheduleChangeAndPersistsAuditHistory() {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        LocalDateTime inicioAnterior = REFERENCE_TIME.plusHours(1);
+        LocalDateTime fimAnterior = REFERENCE_TIME.plusHours(2);
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.APROVADA,
+                inicioAnterior,
+                fimAnterior,
+                responsavel
+        );
+        LocalDateTime novoInicio = REFERENCE_TIME.plusHours(3);
+        LocalDateTime novoFim = REFERENCE_TIME.plusHours(4);
+        entityManager.flush();
+
+        Reserva atualizada = reservaService.aplicarAlteracaoAprovada(
+                reserva.getId(),
+                novoInicio,
+                novoFim,
+                responsavel
+        );
+
+        assertEquals(novoInicio, atualizada.getInicio());
+        assertEquals(novoFim, atualizada.getFim());
+        entityManager.clear();
+
+        List<AlteracaoHorarioAplicada> historico =
+                reservaService.consultarHistorico(reserva.getId());
+        assertEquals(1, historico.size());
+        AlteracaoHorarioAplicada alteracao = historico.get(0);
+        assertEquals(reserva.getId(), alteracao.getReserva().getId());
+        assertEquals(responsavel.getId(), alteracao.getResponsavel().getId());
+        assertEquals(inicioAnterior, alteracao.getOldInicio());
+        assertEquals(fimAnterior, alteracao.getOldFim());
+        assertEquals(novoInicio, alteracao.getNewInicio());
+        assertEquals(novoFim, alteracao.getNewFim());
+        assertEquals(REFERENCE_TIME.atZone(TIME_ZONE).toInstant(), alteracao.getAppliedAt());
+    }
+
+    @Test
+    void doesNotCreateAuditEntryWhenScheduleIsUnchanged() {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        LocalDateTime inicio = REFERENCE_TIME.plusHours(1);
+        LocalDateTime fim = REFERENCE_TIME.plusHours(2);
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.APROVADA,
+                inicio,
+                fim,
+                responsavel
+        );
+        entityManager.flush();
+
+        Reserva unchanged = reservaService.aplicarAlteracaoAprovada(
+                reserva.getId(),
+                inicio,
+                fim,
+                responsavel
+        );
+
+        assertEquals(inicio, unchanged.getInicio());
+        assertEquals(fim, unchanged.getFim());
+        assertEquals(
+                0,
+                alteracaoHorarioAplicadaRepository
+                        .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reserva.getId())
+                        .size()
+        );
+    }
+
+    @Test
+    void rejectsScheduleChangeForReservationThatIsNotApproved() {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.SOLICITADA,
+                REFERENCE_TIME.plusHours(1),
+                REFERENCE_TIME.plusHours(2),
+                null
+        );
+        entityManager.flush();
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.aplicarAlteracaoAprovada(
+                        reserva.getId(),
+                        REFERENCE_TIME.plusHours(3),
+                        REFERENCE_TIME.plusHours(4),
+                        responsavel
+                )
+        );
+        assertEquals(
+                0,
+                alteracaoHorarioAplicadaRepository
+                        .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reserva.getId())
+                        .size()
+        );
+    }
+
+    @Test
+    void rejectsInvalidScheduleChangeWithoutPersistingIt() {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        LocalDateTime inicioAnterior = REFERENCE_TIME.plusHours(1);
+        LocalDateTime fimAnterior = REFERENCE_TIME.plusHours(2);
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.APROVADA,
+                inicioAnterior,
+                fimAnterior,
+                responsavel
+        );
+        entityManager.flush();
+
+        assertThrows(
+                ReservaService.ReservaHorarioInvalidoException.class,
+                () -> reservaService.aplicarAlteracaoAprovada(
+                        reserva.getId(),
+                        REFERENCE_TIME.plusHours(3).plusMinutes(15),
+                        REFERENCE_TIME.plusHours(4),
+                        responsavel
+                )
+        );
+        assertEquals(inicioAnterior, reservaRepository.findById(reserva.getId())
+                .orElseThrow().getInicio());
+        assertEquals(
+                0,
+                alteracaoHorarioAplicadaRepository
+                        .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reserva.getId())
+                        .size()
+        );
+    }
+
+    @Test
+    void rejectsScheduleChangeThatConflictsWithAnotherApprovedReservation() {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.APROVADA,
+                REFERENCE_TIME.plusHours(1),
+                REFERENCE_TIME.plusHours(2),
+                responsavel
+        );
+        persistReserva(
+                sala,
+                StatusReserva.APROVADA,
+                REFERENCE_TIME.plusHours(3),
+                REFERENCE_TIME.plusHours(4),
+                responsavel
+        );
+        entityManager.flush();
+
+        assertThrows(
+                ReservaService.ReservaIndisponivelException.class,
+                () -> reservaService.aplicarAlteracaoAprovada(
+                        reserva.getId(),
+                        REFERENCE_TIME.plusHours(3).plusMinutes(30),
+                        REFERENCE_TIME.plusHours(4).plusMinutes(30),
+                        responsavel
+                )
+        );
+        assertEquals(
+                0,
+                alteracaoHorarioAplicadaRepository
+                        .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reserva.getId())
+                        .size()
+        );
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void rollsBackScheduleUpdateWhenAuditPersistenceFails() {
+        TransactionTemplate transaction = new TransactionTemplate(transactionManager);
+        List<Long> ids = transaction.execute(status -> {
+            Sala sala = persistSala(StatusSala.DISPONIVEL);
+            Responsavel responsavel = persistResponsavel();
+            Reserva reserva = persistReserva(
+                    sala,
+                    StatusReserva.APROVADA,
+                    REFERENCE_TIME.plusHours(1),
+                    REFERENCE_TIME.plusHours(2),
+                    responsavel
+            );
+            entityManager.flush();
+            return List.of(reserva.getId(), responsavel.getId());
+        });
+        Long reservaId = ids.get(0);
+        Long responsavelId = ids.get(1);
+        LocalDateTime inicioOriginal = REFERENCE_TIME.plusHours(1);
+        LocalDateTime fimOriginal = REFERENCE_TIME.plusHours(2);
+        LocalDateTime novoInicio = REFERENCE_TIME.plusHours(3);
+        LocalDateTime novoFim = REFERENCE_TIME.plusHours(4);
+        doThrow(new IllegalStateException("simulated audit storage failure"))
+                .when(alteracaoHorarioAplicadaSpy)
+                .save(any(AlteracaoHorarioAplicada.class));
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.aplicarAlteracaoAprovada(
+                        reservaId,
+                        novoInicio,
+                        novoFim,
+                        new Responsavel(
+                                responsavelId,
+                                "Responsável",
+                                "responsavel@example.test",
+                                "hash",
+                                LocalDate.now(),
+                                LocalDate.now()
+                        )
+                )
+        );
+        reset(alteracaoHorarioAplicadaSpy);
+
+        transaction.execute(status -> {
+            Reserva persistida = reservaRepository.findById(reservaId).orElseThrow();
+            assertEquals(inicioOriginal, persistida.getInicio());
+            assertEquals(fimOriginal, persistida.getFim());
+            assertTrue(alteracaoHorarioAplicadaRepository
+                    .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reservaId)
+                    .isEmpty());
+            return null;
+        });
+    }
+
     private Sala persistSala(StatusSala status) {
         Sala sala = new Sala(null, 30, status);
         entityManager.persist(sala);
@@ -299,7 +542,7 @@ class ReservaServiceTest {
         Responsavel responsavel = new Responsavel(
                 null,
                 "Responsável",
-                "responsavel@example.test",
+                "responsavel" + System.nanoTime() + "@example.test",
                 "hash",
                 LocalDate.now(),
                 LocalDate.now()
@@ -355,10 +598,16 @@ class ReservaServiceTest {
         @Bean
         ReservaService reservaService(
                 ReservaRepository reservaRepository,
+                AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository,
                 EntityManager entityManager
         ) {
             Clock clock = Clock.fixed(REFERENCE_TIME.atZone(TIME_ZONE).toInstant(), TIME_ZONE);
-            return new ReservaService(reservaRepository, entityManager, clock);
+            return new ReservaService(
+                    reservaRepository,
+                    alteracaoHorarioAplicadaRepository,
+                    entityManager,
+                    clock
+            );
         }
     }
 }
