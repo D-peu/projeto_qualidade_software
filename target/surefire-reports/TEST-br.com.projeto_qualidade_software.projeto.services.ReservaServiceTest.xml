@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="6.8" tests="3" errors="0" skipped="0" failures="0">
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://maven.apache.org/surefire/maven-surefire-plugin/xsd/surefire-test-report.xsd" version="3.0.2" name="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="7.454" tests="8" errors="0" skipped="0" failures="0">
   <properties>
     <property name="java.specification.version" value="25"/>
     <property name="sun.jnu.encoding" value="UTF-8"/>
@@ -14,7 +14,7 @@
     <property name="APPLICATION_NAME" value="projeto-qualidade-software"/>
     <property name="sun.java.launcher" value="SUN_STANDARD"/>
     <property name="sun.boot.library.path" value="/usr/local/sdkman/candidates/java/25.0.4+1-ms/lib"/>
-    <property name="sun.java.command" value="/workspaces/projeto_qualidade_software/target/surefire/surefirebooter-20261112205240148_3.jar /workspaces/projeto_qualidade_software/target/surefire 2026-11-12T20-52-39_974-jvmRun1 surefire-20261112205240148_1tmp surefire_0-20261112205240148_2tmp"/>
+    <property name="sun.java.command" value="/workspaces/projeto_qualidade_software/target/surefire/surefirebooter-20261112212449961_3.jar /workspaces/projeto_qualidade_software/target/surefire 2026-11-12T21-24-49_808-jvmRun1 surefire-20261112212449961_1tmp surefire_0-20261112212449961_2tmp"/>
     <property name="jdk.debug" value="release"/>
     <property name="surefire.test.class.path" value="/workspaces/projeto_qualidade_software/target/test-classes:/workspaces/projeto_qualidade_software/target/classes:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter-data-jpa/3.5.7/spring-boot-starter-data-jpa-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter/3.5.7/spring-boot-starter-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot/3.5.7/spring-boot-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-autoconfigure/3.5.7/spring-boot-autoconfigure-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter-logging/3.5.7/spring-boot-starter-logging-3.5.7.jar:/home/codespace/.m2/repository/ch/qos/logback/logback-classic/1.5.20/logback-classic-1.5.20.jar:/home/codespace/.m2/repository/ch/qos/logback/logback-core/1.5.20/logback-core-1.5.20.jar:/home/codespace/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.24.3/log4j-to-slf4j-2.24.3.jar:/home/codespace/.m2/repository/org/apache/logging/log4j/log4j-api/2.24.3/log4j-api-2.24.3.jar:/home/codespace/.m2/repository/org/slf4j/jul-to-slf4j/2.0.17/jul-to-slf4j-2.0.17.jar:/home/codespace/.m2/repository/jakarta/annotation/jakarta.annotation-api/2.1.1/jakarta.annotation-api-2.1.1.jar:/home/codespace/.m2/repository/org/yaml/snakeyaml/2.4/snakeyaml-2.4.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter-jdbc/3.5.7/spring-boot-starter-jdbc-3.5.7.jar:/home/codespace/.m2/repository/com/zaxxer/HikariCP/6.3.3/HikariCP-6.3.3.jar:/home/codespace/.m2/repository/org/springframework/spring-jdbc/6.2.12/spring-jdbc-6.2.12.jar:/home/codespace/.m2/repository/org/hibernate/orm/hibernate-core/6.6.33.Final/hibernate-core-6.6.33.Final.jar:/home/codespace/.m2/repository/jakarta/persistence/jakarta.persistence-api/3.1.0/jakarta.persistence-api-3.1.0.jar:/home/codespace/.m2/repository/jakarta/transaction/jakarta.transaction-api/2.0.1/jakarta.transaction-api-2.0.1.jar:/home/codespace/.m2/repository/org/jboss/logging/jboss-logging/3.6.1.Final/jboss-logging-3.6.1.Final.jar:/home/codespace/.m2/repository/org/hibernate/common/hibernate-commons-annotations/7.0.3.Final/hibernate-commons-annotations-7.0.3.Final.jar:/home/codespace/.m2/repository/io/smallrye/jandex/3.2.0/jandex-3.2.0.jar:/home/codespace/.m2/repository/com/fasterxml/classmate/1.7.1/classmate-1.7.1.jar:/home/codespace/.m2/repository/net/bytebuddy/byte-buddy/1.17.8/byte-buddy-1.17.8.jar:/home/codespace/.m2/repository/org/glassfish/jaxb/jaxb-runtime/4.0.6/jaxb-runtime-4.0.6.jar:/home/codespace/.m2/repository/org/glassfish/jaxb/jaxb-core/4.0.6/jaxb-core-4.0.6.jar:/home/codespace/.m2/repository/org/eclipse/angus/angus-activation/2.0.3/angus-activation-2.0.3.jar:/home/codespace/.m2/repository/org/glassfish/jaxb/txw2/4.0.6/txw2-4.0.6.jar:/home/codespace/.m2/repository/com/sun/istack/istack-commons-runtime/4.1.2/istack-commons-runtime-4.1.2.jar:/home/codespace/.m2/repository/jakarta/inject/jakarta.inject-api/2.0.1/jakarta.inject-api-2.0.1.jar:/home/codespace/.m2/repository/org/antlr/antlr4-runtime/4.13.0/antlr4-runtime-4.13.0.jar:/home/codespace/.m2/repository/org/springframework/data/spring-data-jpa/3.5.5/spring-data-jpa-3.5.5.jar:/home/codespace/.m2/repository/org/springframework/data/spring-data-commons/3.5.5/spring-data-commons-3.5.5.jar:/home/codespace/.m2/repository/org/springframework/spring-orm/6.2.12/spring-orm-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-context/6.2.12/spring-context-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-expression/6.2.12/spring-expression-6.2.12.jar:/home/codespace/.m2/repository/io/micrometer/micrometer-observation/1.15.5/micrometer-observation-1.15.5.jar:/home/codespace/.m2/repository/io/micrometer/micrometer-commons/1.15.5/micrometer-commons-1.15.5.jar:/home/codespace/.m2/repository/org/springframework/spring-aop/6.2.12/spring-aop-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-tx/6.2.12/spring-tx-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-beans/6.2.12/spring-beans-6.2.12.jar:/home/codespace/.m2/repository/org/slf4j/slf4j-api/2.0.17/slf4j-api-2.0.17.jar:/home/codespace/.m2/repository/org/springframework/spring-aspects/6.2.12/spring-aspects-6.2.12.jar:/home/codespace/.m2/repository/org/aspectj/aspectjweaver/1.9.24/aspectjweaver-1.9.24.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter-validation/3.5.7/spring-boot-starter-validation-3.5.7.jar:/home/codespace/.m2/repository/org/apache/tomcat/embed/tomcat-embed-el/10.1.48/tomcat-embed-el-10.1.48.jar:/home/codespace/.m2/repository/org/hibernate/validator/hibernate-validator/8.0.3.Final/hibernate-validator-8.0.3.Final.jar:/home/codespace/.m2/repository/jakarta/validation/jakarta.validation-api/3.0.2/jakarta.validation-api-3.0.2.jar:/home/codespace/.m2/repository/org/postgresql/postgresql/42.7.8/postgresql-42.7.8.jar:/home/codespace/.m2/repository/org/checkerframework/checker-qual/3.49.5/checker-qual-3.49.5.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-starter-test/3.5.7/spring-boot-starter-test-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-test/3.5.7/spring-boot-test-3.5.7.jar:/home/codespace/.m2/repository/org/springframework/boot/spring-boot-test-autoconfigure/3.5.7/spring-boot-test-autoconfigure-3.5.7.jar:/home/codespace/.m2/repository/com/jayway/jsonpath/json-path/2.9.0/json-path-2.9.0.jar:/home/codespace/.m2/repository/jakarta/xml/bind/jakarta.xml.bind-api/4.0.4/jakarta.xml.bind-api-4.0.4.jar:/home/codespace/.m2/repository/jakarta/activation/jakarta.activation-api/2.1.4/jakarta.activation-api-2.1.4.jar:/home/codespace/.m2/repository/net/minidev/json-smart/2.5.2/json-smart-2.5.2.jar:/home/codespace/.m2/repository/net/minidev/accessors-smart/2.5.2/accessors-smart-2.5.2.jar:/home/codespace/.m2/repository/org/ow2/asm/asm/9.7.1/asm-9.7.1.jar:/home/codespace/.m2/repository/org/assertj/assertj-core/3.27.6/assertj-core-3.27.6.jar:/home/codespace/.m2/repository/org/awaitility/awaitility/4.2.2/awaitility-4.2.2.jar:/home/codespace/.m2/repository/org/hamcrest/hamcrest/3.0/hamcrest-3.0.jar:/home/codespace/.m2/repository/org/junit/jupiter/junit-jupiter/5.12.2/junit-jupiter-5.12.2.jar:/home/codespace/.m2/repository/org/junit/jupiter/junit-jupiter-api/5.12.2/junit-jupiter-api-5.12.2.jar:/home/codespace/.m2/repository/org/opentest4j/opentest4j/1.3.0/opentest4j-1.3.0.jar:/home/codespace/.m2/repository/org/junit/platform/junit-platform-commons/1.12.2/junit-platform-commons-1.12.2.jar:/home/codespace/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar:/home/codespace/.m2/repository/org/junit/jupiter/junit-jupiter-params/5.12.2/junit-jupiter-params-5.12.2.jar:/home/codespace/.m2/repository/org/junit/jupiter/junit-jupiter-engine/5.12.2/junit-jupiter-engine-5.12.2.jar:/home/codespace/.m2/repository/org/junit/platform/junit-platform-engine/1.12.2/junit-platform-engine-1.12.2.jar:/home/codespace/.m2/repository/org/mockito/mockito-core/5.17.0/mockito-core-5.17.0.jar:/home/codespace/.m2/repository/net/bytebuddy/byte-buddy-agent/1.17.8/byte-buddy-agent-1.17.8.jar:/home/codespace/.m2/repository/org/objenesis/objenesis/3.3/objenesis-3.3.jar:/home/codespace/.m2/repository/org/mockito/mockito-junit-jupiter/5.17.0/mockito-junit-jupiter-5.17.0.jar:/home/codespace/.m2/repository/org/skyscreamer/jsonassert/1.5.3/jsonassert-1.5.3.jar:/home/codespace/.m2/repository/com/vaadin/external/google/android-json/0.0.20131108.vaadin1/android-json-0.0.20131108.vaadin1.jar:/home/codespace/.m2/repository/org/springframework/spring-core/6.2.12/spring-core-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-jcl/6.2.12/spring-jcl-6.2.12.jar:/home/codespace/.m2/repository/org/springframework/spring-test/6.2.12/spring-test-6.2.12.jar:/home/codespace/.m2/repository/org/xmlunit/xmlunit-core/2.10.4/xmlunit-core-2.10.4.jar:/home/codespace/.m2/repository/com/h2database/h2/2.3.232/h2-2.3.232.jar:"/>
     <property name="sun.cpu.endian" value="little"/>
@@ -31,7 +31,7 @@
     <property name="java.specification.name" value="Java Platform API Specification"/>
     <property name="FILE_LOG_CHARSET" value="UTF-8"/>
     <property name="java.awt.headless" value="true"/>
-    <property name="surefire.real.class.path" value="/workspaces/projeto_qualidade_software/target/surefire/surefirebooter-20261112205240148_3.jar"/>
+    <property name="surefire.real.class.path" value="/workspaces/projeto_qualidade_software/target/surefire/surefirebooter-20261112212449961_3.jar"/>
     <property name="sun.management.compiler" value="HotSpot 64-Bit Tiered Compilers"/>
     <property name="java.runtime.version" value="25.0.4.1+1-LTS"/>
     <property name="user.name" value="codespace"/>
@@ -49,7 +49,7 @@
     <property name="user.dir" value="/workspaces/projeto_qualidade_software"/>
     <property name="os.arch" value="amd64"/>
     <property name="java.vm.specification.name" value="Java Virtual Machine Specification"/>
-    <property name="PID" value="97945"/>
+    <property name="PID" value="114879"/>
     <property name="CONSOLE_LOG_CHARSET" value="UTF-8"/>
     <property name="native.encoding" value="UTF-8"/>
     <property name="java.library.path" value="/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib"/>
@@ -62,9 +62,8 @@
     <property name="java.class.version" value="69.0"/>
     <property name="LOGGED_APPLICATION_NAME" value="[projeto-qualidade-software] "/>
   </properties>
-  <testcase name="blocksApprovalWhenAnotherConfirmedReservationOverlaps" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.958">
-    <system-out><![CDATA[20:52:41.637 [main] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest]: ReservaServiceTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
-20:52:41.831 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration br.com.projeto_qualidade_software.projeto.ProjetoQualidadeSoftwareApplication for test class br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest
+  <testcase name="blocksApprovalWhenAnotherConfirmedReservationOverlaps" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.916">
+    <system-out><![CDATA[21:24:51.463 [main] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration br.com.projeto_qualidade_software.projeto.ProjetoQualidadeSoftwareApplication for test class br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest
 
   .   ____          _            __ _ _
  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
@@ -75,39 +74,39 @@
 
  :: Spring Boot ::                (v3.5.7)
 
-2026-11-12T20:52:42.637Z  INFO 97945 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : Starting ReservaServiceTest using Java 25.0.4.1 with PID 97945 (started by codespace in /workspaces/projeto_qualidade_software)
-2026-11-12T20:52:42.640Z  INFO 97945 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : No active profile set, falling back to 1 default profile: "default"
-2026-11-12T20:52:43.177Z  INFO 97945 --- [projeto-qualidade-software] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-11-12T20:52:43.291Z  INFO 97945 --- [projeto-qualidade-software] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 87 ms. Found 1 JPA repository interface.
-2026-11-12T20:52:43.394Z  INFO 97945 --- [projeto-qualidade-software] [           main] beddedDataSourceBeanFactoryPostProcessor : Replacing 'dataSource' DataSource bean with embedded version
-2026-11-12T20:52:43.524Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.s.j.d.e.EmbeddedDatabaseFactory        : Starting embedded database: url='jdbc:h2:mem:b3ce051a-fc4d-4c9d-8800-4eedd85e37a4;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false', username='sa'
-2026-11-12T20:52:43.926Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
-2026-11-12T20:52:43.975Z  INFO 97945 --- [projeto-qualidade-software] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.33.Final
-2026-11-12T20:52:44.008Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
-2026-11-12T20:52:44.314Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-11-12T20:52:44.424Z  INFO 97945 --- [projeto-qualidade-software] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
-	Database JDBC URL [Connecting through datasource 'org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseFactory$EmbeddedDataSourceProxy@6c9a3661']
+2026-11-12T21:24:52.147Z  INFO 114879 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : Starting ReservaServiceTest using Java 25.0.4.1 with PID 114879 (started by codespace in /workspaces/projeto_qualidade_software)
+2026-11-12T21:24:52.157Z  INFO 114879 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : No active profile set, falling back to 1 default profile: "default"
+2026-11-12T21:24:52.834Z  INFO 114879 --- [projeto-qualidade-software] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-11-12T21:24:52.927Z  INFO 114879 --- [projeto-qualidade-software] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 66 ms. Found 1 JPA repository interface.
+2026-11-12T21:24:53.091Z  INFO 114879 --- [projeto-qualidade-software] [           main] beddedDataSourceBeanFactoryPostProcessor : Replacing 'dataSource' DataSource bean with embedded version
+2026-11-12T21:24:53.362Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.s.j.d.e.EmbeddedDatabaseFactory        : Starting embedded database: url='jdbc:h2:mem:90a4081a-de99-47a8-a533-464c839a0ee4;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false', username='sa'
+2026-11-12T21:24:53.909Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-11-12T21:24:54.004Z  INFO 114879 --- [projeto-qualidade-software] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.6.33.Final
+2026-11-12T21:24:54.041Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-11-12T21:24:54.391Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-11-12T21:24:54.525Z  INFO 114879 --- [projeto-qualidade-software] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+	Database JDBC URL [Connecting through datasource 'org.springframework.jdbc.datasource.embedded.EmbeddedDatabaseFactory$EmbeddedDataSourceProxy@6537ac']
 	Database driver: undefined/unknown
 	Database version: 2.3.232
 	Autocommit mode: undefined/unknown
 	Isolation level: undefined/unknown
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-11-12T20:52:45.718Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-11-12T21:24:55.619Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
 Hibernate: drop table if exists reservas cascade 
 Hibernate: drop table if exists responsaveis cascade 
 Hibernate: drop table if exists salas cascade 
 Hibernate: drop table if exists solicitantes cascade 
-Hibernate: create table reservas (aprovado_em timestamp(6), fim timestamp(6) not null, id bigint generated by default as identity, inicio timestamp(6) not null, responsavel_id bigint, sala_id bigint not null, solicitado_em timestamp(6) not null, solicitante_id bigint not null, status enum ('APROVADA','CANCELADA','CONCLUIDA','EM_USO','NAO_COMPARECEU','REJEITADA','SOLICITADA') not null, primary key (id))
+Hibernate: create table reservas (aprovado_em timestamp(6), fim timestamp(6) not null, id bigint generated by default as identity, inicio timestamp(6) not null, responsavel_id bigint, sala_id bigint not null, solicitado_em timestamp(6) not null, solicitante_id bigint not null, status enum ('APROVADA','CANCELADA','CONCLUIDA','EM_USO','EXPIRADA','NAO_COMPARECEU','REJEITADA','SOLICITADA') not null, primary key (id))
 Hibernate: create table responsaveis (atualizado_em date, criado_em date, id bigint generated by default as identity, email varchar(255) not null unique, name varchar(255) not null, password varchar(255) not null, primary key (id))
 Hibernate: create table salas (capacidade integer not null, id bigint generated by default as identity, status_sala enum ('DISPONIVEL','EM_MANUTENCAO','RESERVADA') not null, primary key (id))
 Hibernate: create table solicitantes (atualizado_em date, criado_em date, id bigint generated by default as identity, email varchar(255), name varchar(255), password varchar(255), tipo_solicitante enum ('COORDENADOR','PROFESSOR') not null, primary key (id))
 Hibernate: alter table if exists reservas add constraint FK37hsfh1y3qvs0qtruuvw7qmpj foreign key (responsavel_id) references responsaveis
 Hibernate: alter table if exists reservas add constraint FKpswbj6w08uu6re02mc0jdi39v foreign key (sala_id) references salas
 Hibernate: alter table if exists reservas add constraint FK1xnpmou60hfey02r9hbrloyfh foreign key (solicitante_id) references solicitantes
-2026-11-12T20:52:45.800Z  INFO 97945 --- [projeto-qualidade-software] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-11-12T20:52:46.178Z  INFO 97945 --- [projeto-qualidade-software] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-11-12T20:52:47.171Z  INFO 97945 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : Started ReservaServiceTest in 5.24 seconds (process running for 6.917)
+2026-11-12T21:24:55.704Z  INFO 114879 --- [projeto-qualidade-software] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-11-12T21:24:56.087Z  INFO 114879 --- [projeto-qualidade-software] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-11-12T21:24:57.013Z  INFO 114879 --- [projeto-qualidade-software] [           main] b.c.p.p.services.ReservaServiceTest      : Started ReservaServiceTest in 5.43 seconds (process running for 6.941)
 Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
 Hibernate: insert into responsaveis (atualizado_em,criado_em,email,name,password,id) values (?,?,?,?,?,default)
 Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
@@ -124,7 +123,7 @@ WARNING: If a serviceability tool is not in use, please run with -Djdk.instrumen
 WARNING: Dynamic loading of agents will be disallowed by default in a future release
 ]]></system-err>
   </testcase>
-  <testcase name="allowsApprovalWhenOnlyOverlappingReservationsAreStillPending" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.028">
+  <testcase name="expiredReservationDoesNotBlockApproval" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.042">
     <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
 Hibernate: insert into responsaveis (atualizado_em,criado_em,email,name,password,id) values (?,?,?,?,?,default)
 Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
@@ -135,13 +134,113 @@ Hibernate: select r1_0.sala_id from reservas r1_0 where r1_0.id=?
 Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0 where r1_0.sala_id=? order by r1_0.id for update
 ]]></system-out>
   </testcase>
-  <testcase name="blocksApprovalWhenRoomIsInMaintenance" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.022">
+  <testcase name="allowsApprovalWhenOnlyOverlappingReservationsAreStillPending" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.035">
+    <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
+Hibernate: insert into responsaveis (atualizado_em,criado_em,email,name,password,id) values (?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: select r1_0.sala_id from reservas r1_0 where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0 where r1_0.sala_id=? order by r1_0.id for update
+]]></system-out>
+  </testcase>
+  <testcase name="blocksApprovalWhenRoomIsInMaintenance" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.03">
     <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
 Hibernate: insert into responsaveis (atualizado_em,criado_em,email,name,password,id) values (?,?,?,?,?,default)
 Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
 Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
 Hibernate: select r1_0.sala_id from reservas r1_0 where r1_0.id=?
 Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0 where r1_0.sala_id=? order by r1_0.id for update
+]]></system-out>
+  </testcase>
+  <testcase name="doesNotChangeReservationsOutsideRequestedState" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.116">
+    <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update reservas r1_0 set status=? where r1_0.status=? and r1_0.inicio<=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0
+Hibernate: select s1_0.id,s1_0.capacidade,s1_0.status_sala from salas s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+]]></system-out>
+  </testcase>
+  <testcase name="persistsExpirationWhenLateApprovalIsRejected" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.151">
+    <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into responsaveis (atualizado_em,criado_em,email,name,password,id) values (?,?,?,?,?,default)
+Hibernate: select r1_0.sala_id from reservas r1_0 where r1_0.id=?
+Hibernate: select s1_0.id,s1_0.capacidade,s1_0.status_sala from salas s1_0 where s1_0.id=? for update
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0 where r1_0.sala_id=? order by r1_0.id for update
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: update reservas set aprovado_em=?,fim=?,inicio=?,responsavel_id=?,sala_id=?,solicitante_id=?,status=? where id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.sala_id from reservas r1_0 where r1_0.id=?
+Hibernate: select s1_0.id,s1_0.capacidade,s1_0.status_sala from salas s1_0 where s1_0.id=? for update
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0 where r1_0.sala_id=? order by r1_0.id for update
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: update reservas set aprovado_em=?,fim=?,inicio=?,responsavel_id=?,sala_id=?,solicitante_id=?,status=? where id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+]]></system-out>
+  </testcase>
+  <testcase name="expiresSolicitationsBeforeAtAndAfterStartWhenListing" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.108">
+    <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update reservas r1_0 set status=? where r1_0.status=? and r1_0.inicio<=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r1_0.responsavel_id,r1_0.sala_id,r1_0.solicitado_em,r1_0.solicitante_id,r1_0.status from reservas r1_0
+Hibernate: select s1_0.id,s1_0.capacidade,s1_0.status_sala from salas s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.capacidade,s1_0.status_sala from salas s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select s1_0.id,s1_0.atualizado_em,s1_0.criado_em,s1_0.email,s1_0.name,s1_0.password,s1_0.tipo_solicitante from solicitantes s1_0 where s1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+]]></system-out>
+  </testcase>
+  <testcase name="expiresSolicitationsWhenFindingAReservation" classname="br.com.projeto_qualidade_software.projeto.services.ReservaServiceTest" time="0.018">
+    <system-out><![CDATA[Hibernate: insert into salas (capacidade,status_sala,id) values (?,?,default)
+Hibernate: insert into solicitantes (atualizado_em,criado_em,email,name,password,tipo_solicitante,id) values (?,?,?,?,?,?,default)
+Hibernate: insert into reservas (aprovado_em,fim,inicio,responsavel_id,sala_id,solicitado_em,solicitante_id,status,id) values (?,?,?,?,?,?,?,?,default)
+Hibernate: update reservas r1_0 set status=? where r1_0.status=? and r1_0.inicio<=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
+Hibernate: select r1_0.id,r1_0.aprovado_em,r1_0.fim,r1_0.inicio,r2_0.id,r2_0.atualizado_em,r2_0.criado_em,r2_0.email,r2_0.name,r2_0.password,r1_0.sala_id,s1_0.id,s1_0.capacidade,s1_0.status_sala,r1_0.solicitado_em,r1_0.solicitante_id,s2_0.id,s2_0.atualizado_em,s2_0.criado_em,s2_0.email,s2_0.name,s2_0.password,s2_0.tipo_solicitante,r1_0.status from reservas r1_0 left join responsaveis r2_0 on r2_0.id=r1_0.responsavel_id join salas s1_0 on s1_0.id=r1_0.sala_id join solicitantes s2_0 on s2_0.id=r1_0.solicitante_id where r1_0.id=?
 ]]></system-out>
   </testcase>
 </testsuite>

@@ -7,5 +7,6 @@ public enum StatusReserva {
     CONCLUIDA,
     REJEITADA,
     CANCELADA,
-    NAO_COMPARECEU
+    NAO_COMPARECEU,
+    EXPIRADA
 }

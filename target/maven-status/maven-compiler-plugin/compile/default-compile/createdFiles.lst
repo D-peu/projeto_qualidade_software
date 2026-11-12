@@ -6,6 +6,7 @@ br/com/projeto_qualidade_software/projeto/enums/StatusSala.class
 br/com/projeto_qualidade_software/projeto/entities/Sala.class
 br/com/projeto_qualidade_software/projeto/enums/StatusReserva.class
 br/com/projeto_qualidade_software/projeto/ProjetoQualidadeSoftwareApplication.class
+br/com/projeto_qualidade_software/projeto/services/ReservaService$ReservaExpiradaException.class
 br/com/projeto_qualidade_software/projeto/entities/Responsavel.class
 br/com/projeto_qualidade_software/projeto/services/ReservaService$ReservaIndisponivelException.class
 br/com/projeto_qualidade_software/projeto/entities/Reserva.class

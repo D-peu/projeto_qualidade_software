@@ -1,0 +1,94 @@
+{
+  "storyId": "1.2",
+  "storyPath": "docs/stories/1.2.expiracao-de-solicitacoes-de-reserva.story.md",
+  "verdict": "GO",
+  "score": "8/10",
+  "confidence": "High",
+  "statusTransition": "Draft -> Ready (GO)",
+  "validatedAt": "2026-11-12",
+  "scopeConfirmed": {
+    "delivery": "Partial RF15 lifecycle increment only; do not declare RF15 complete",
+    "trigger": "On-demand expiry during reservation query/list operations",
+    "transition": "New SOLICITADA reservations become EXPIRADA when inicio <= current reference time",
+    "timezone": "America/Sao_Paulo; interpret Reserva.inicio LocalDateTime as local time in this zone",
+    "lateApproval": "Reject approval and persist EXPIRADA, including after the rejected operation completes",
+    "audit": "Deferred; RF14/RN12 audit requirements are not satisfied by this story",
+    "pendingAlterationExpiry": "Out of scope because no pending-alteration model exists",
+    "scheduler": "Out of scope; do not implement"
+  },
+  "criteria": {
+    "clearTitle": "pass",
+    "completeDescription": "pass",
+    "testableAcceptanceCriteria": "pass: inclusive before/equal/after boundaries, explicit zone, persisted late-approval rejection, and persistence-oriented tests are defined",
+    "wellDefinedScope": "pass: partial RF15 delivery, deferred audit, and pending alteration exclusion are explicit",
+    "dependencies": "partial: current reservation/service/repository/test model is identified; no epic or architecture document exists",
+    "complexityEstimate": "pass: Medium is reasonable for state persistence, query/list integration, and tests",
+    "businessValue": "pass",
+    "risks": "pass: partial requirement coverage and omitted audit/alteration expiry are explicitly disclosed",
+    "definitionOfDone": "pass: test cases include controlled-clock boundaries, persisted query/list transition, rejected late approval, and occupancy behavior",
+    "sourceAlignment": "pass for scoped increment: PRD/RF15/RN12 traceability is retained without claiming RF15, RF14, or RN12 complete"
+  },
+  "criticalIssues": [],
+  "shouldFix": [
+    "No parent epic, accumulated-context.md, architecture document, or .aiox/gotchas.json is present; implementation must remain grounded in the cited source and existing code.",
+    "No backlog artifact/item was found to verify tracking of the deferred audit follow-up. This does not block the partial story, but audit must be tracked and completed before claiming RF14/RN12 or full RF15 coverage.",
+    "No query/list service or controller currently exists. The story explicitly authorizes adding service-level query/list operations and excludes HTTP/API work; those operations must be covered at service/persistence level."
+  ],
+  "templateCompliance": {
+    "requiredSectionsPresent": true,
+    "unfilledTemplatePlaceholders": "none in PO-owned sections; Dev Agent Record placeholders are intentionally reserved for implementation",
+    "executorAssignment": "pass: @dev and @architect differ; quality_gate_tools is non-empty",
+    "codeRabbit": "pass: enabled section populated with type, assignments, gates, self-healing configuration, and focused validations"
+  },
+  "sourceFindings": [
+    "RF15 lists all eight states, including EXPIRADA; current StatusReserva has seven and requires the new state.",
+    "Reserva uses LocalDateTime for inicio; the story now defines its comparison as local time in America/Sao_Paulo.",
+    "Current ReservaService only approves and revalidates conflicts; ReservaRepository has no expiry/query-list operation. The story authorizes the required service-level operations while excluding endpoints/controllers.",
+    "Existing approval occupancy includes APROVADA and EM_USO only, so EXPIRADA should not occupy time.",
+    "PRD testing strategy calls for controlled-clock state tests; the story now specifies zone, boundary tests, and persistence assertions.",
+    "No local epic, architecture directory, or accumulated-context.md was found. Story 1.1 was reviewed for coherence and was not modified."
+  ],
+  "poMasterChecklist": {
+    "projectType": "Brownfield enhancement; backend story, no UI work in scope",
+    "skipped": [
+      "1.1 Greenfield scaffolding",
+      "Section 4 UI/UX"
+    ],
+    "findings": [
+      "Existing-system integration and code paths are identified; rollback and architecture documentation are absent, but no schema migration or API integration is in scope.",
+      "Java 21, Spring Boot, Maven, JUnit 5, and H2 test usage are evidenced; timezone is now decided for this story.",
+      "No external service dependency is introduced; API/endpoints and scheduler are correctly out of scope.",
+      "Story ownership, tasks, dependencies, and sequencing are clear for this partial increment.",
+      "The story maps to RF15/RN12 while explicitly limiting delivered coverage; audit and pending-alteration expiry remain deferred.",
+      "Testing and handoff are described; no audit trail evidence is claimed."
+    ]
+  },
+  "recommendations": [
+    "Keep the story's partial-RF15 wording intact in implementation and release notes; do not update RTM evidence as if RF15/RN12 were complete.",
+    "Create/retain a separate backlog item for audit and pending-alteration expiration before planning full RF14/RN12/RF15 coverage.",
+    "In the late-approval implementation, ensure the expired state is committed despite the rejected operation, and verify it by reloading from persistence."
+  ],
+  "validationEvidence": {
+    "repositoryTests": {
+      "command": "./mvnw test",
+      "result": "BUILD SUCCESS",
+      "testsRun": 3,
+      "failures": 0,
+      "errors": 0,
+      "note": "Baseline suite passes; the new acceptance scenarios remain to be implemented with this story."
+    },
+    "storyReadiness": "The described state transitions are implementable at the existing service/repository layer and the acceptance criteria are measurable. No HTTP endpoint is required by this story."
+  },
+  "finalAssessment": {
+    "goNoGo": "GO",
+    "score": "8/10",
+    "readiness": "Ready for implementation as a scoped partial RF15 delivery",
+    "remainingBlockers": [],
+    "nonBlockingFollowUps": [
+      "Audit is deferred and not verified as a backlog item in this repository; must be tracked before full requirement completion.",
+      "Expiry of pending alterations remains outside this story because the model does not exist."
+    ],
+    "statusUpdated": "Draft -> Ready",
+    "changeLogVersion": "0.1.3"
+  }
+}
