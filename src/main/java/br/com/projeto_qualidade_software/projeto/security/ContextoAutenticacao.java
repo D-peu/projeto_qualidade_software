@@ -60,6 +60,18 @@ public final class ContextoAutenticacao {
         }
     }
 
+    public static UsuarioAutenticado exigirResponsavelOuAdministrador() {
+        UsuarioAutenticado usuario = usuarioAtual();
+        if (usuario == null
+                || (usuario.perfil() != PerfilUsuario.RESPONSAVEL
+                && usuario.perfil() != PerfilUsuario.ADMINISTRADOR)) {
+            throw new AcessoNegadoException(
+                    "Somente Responsável ou Administrador pode executar esta operação."
+            );
+        }
+        return usuario;
+    }
+
     public static void exigirEquipe() {
         UsuarioAutenticado usuario = usuarioAtual();
         if (usuario != null && usuario.perfil() == PerfilUsuario.SOLICITANTE) {

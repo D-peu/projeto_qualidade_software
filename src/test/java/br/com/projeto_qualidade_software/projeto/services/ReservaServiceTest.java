@@ -1,6 +1,8 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.Administrador;
+import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
+import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
@@ -11,12 +13,18 @@ import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.AuditoriaReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
+import br.com.projeto_qualidade_software.projeto.security.ContextoAutenticacao;
+import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
+import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
 import jakarta.persistence.EntityNotFoundException;
+import org.mockito.ArgumentCaptor;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,6 +40,7 @@ import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -56,11 +65,13 @@ class ReservaServiceTest {
     private static final Long SOLICITANTE_ID = 2L;
     private static final Long RESERVA_ID = 3L;
     private static final Long APROVADOR_ID = 4L;
+    private static final Long MATERIAL_ID = 5L;
     private static final LocalDateTime AGORA = LocalDateTime.of(2040, 1, 1, 10, 0);
     private static final LocalDateTime INICIO = LocalDateTime.of(2040, 1, 2, 10, 0);
     private static final LocalDateTime FIM = LocalDateTime.of(2040, 1, 2, 11, 0);
 
     private ReservaRepository reservaRepository;
+    private AuditoriaReservaRepository auditoriaReservaRepository;
     private SalaRepository salaRepository;
     private SolicitanteRepository solicitanteRepository;
     private ResponsavelRepository responsavelRepository;
@@ -71,6 +82,7 @@ class ReservaServiceTest {
     @BeforeEach
     void setUp() {
         reservaRepository = mock(ReservaRepository.class);
+        auditoriaReservaRepository = mock(AuditoriaReservaRepository.class);
         salaRepository = mock(SalaRepository.class);
         solicitanteRepository = mock(SolicitanteRepository.class);
         responsavelRepository = mock(ResponsavelRepository.class);
@@ -78,6 +90,7 @@ class ReservaServiceTest {
         materialRepository = mock(MaterialRepository.class);
         reservaService = new ReservaService(
                 reservaRepository,
+                auditoriaReservaRepository,
                 salaRepository,
                 solicitanteRepository,
                 responsavelRepository,
@@ -85,6 +98,11 @@ class ReservaServiceTest {
                 materialRepository,
                 Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
         );
+    }
+
+    @AfterEach
+    void limparContextoAutenticacao() {
+        ContextoAutenticacao.limpar();
     }
 
     @Test
@@ -288,7 +306,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(INICIO),
                 eq(FIM),
@@ -312,6 +332,13 @@ class ReservaServiceTest {
         assertEquals(FIM, resultado.getFim());
         assertEquals(StatusReserva.SOLICITADA, resultado.getStatus());
         verify(reservaRepository).save(resultado);
+        ArgumentCaptor<AuditoriaReserva> evento = ArgumentCaptor.forClass(AuditoriaReserva.class);
+        verify(auditoriaReservaRepository).save(evento.capture());
+        assertNull(evento.getValue().getEstadoAnterior());
+        assertEquals(StatusReserva.SOLICITADA, evento.getValue().getNovoEstado());
+        assertEquals(SOLICITANTE_ID, evento.getValue().getUsuarioId());
+        assertEquals(PerfilUsuario.SOLICITANTE, evento.getValue().getPerfilUsuario());
+        assertEquals(AGORA, evento.getValue().getDataHora());
     }
 
     @Test
@@ -411,7 +438,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(INICIO),
                 eq(FIM),
@@ -430,7 +459,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(INICIO),
                 eq(FIM),
@@ -454,7 +485,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(novoInicio),
                 eq(novoFim),
@@ -512,7 +545,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(inicio),
                 eq(fim),
@@ -775,7 +810,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(novoInicio),
                 eq(novoFim),
@@ -796,7 +833,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(novoInicio),
                 eq(novoFim),
@@ -921,10 +960,12 @@ class ReservaServiceTest {
     }
 
     @Test
+    @DisplayName("CP-54 / RF09 / RN03 - Responsável aprova após revalidar recursos")
     void aprovarReservaPorResponsavelAtualizaReservaESalva() {
         Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
         Responsavel responsavel = responsavelDeTeste();
         reserva.setAdministrador(administradorDeTeste());
+        prepararAprovacaoSemConflito(reserva);
         when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
                 .thenReturn(Optional.of(reserva));
         when(responsavelRepository.findById(APROVADOR_ID))
@@ -941,16 +982,26 @@ class ReservaServiceTest {
         assertNull(resultado.getAdministrador());
         assertNotNull(resultado.getAprovadoEm());
         verify(reservaRepository).buscarPorIdComBloqueio(RESERVA_ID);
+        verificarRevalidacaoAprovacao();
         verify(responsavelRepository).findById(APROVADOR_ID);
         verify(reservaRepository).save(reserva);
-        verifyNoInteractions(salaRepository, solicitanteRepository, administradorRepository);
+        verificarAuditoria(
+                StatusReserva.SOLICITADA,
+                StatusReserva.APROVADA,
+                AGORA,
+                PerfilUsuario.RESPONSAVEL,
+                APROVADOR_ID
+        );
+        verifyNoInteractions(administradorRepository);
     }
 
     @Test
+    @DisplayName("CP-55 / RF09 / RN03 - Administrador aprova após revalidar recursos")
     void aprovarReservaPorAdministradorAtualizaReservaESalva() {
         Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
         Administrador administrador = administradorDeTeste();
         reserva.setResponsavel(responsavelDeTeste());
+        prepararAprovacaoSemConflito(reserva);
         when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
                 .thenReturn(Optional.of(reserva));
         when(administradorRepository.findById(APROVADOR_ID))
@@ -967,9 +1018,220 @@ class ReservaServiceTest {
         assertNull(resultado.getResponsavel());
         assertNotNull(resultado.getAprovadoEm());
         verify(reservaRepository).buscarPorIdComBloqueio(RESERVA_ID);
+        verificarRevalidacaoAprovacao();
         verify(administradorRepository).findById(APROVADOR_ID);
         verify(reservaRepository).save(reserva);
-        verifyNoInteractions(salaRepository, solicitanteRepository, responsavelRepository);
+        verificarAuditoria(
+                StatusReserva.SOLICITADA,
+                StatusReserva.APROVADA,
+                AGORA,
+                PerfilUsuario.ADMINISTRADOR,
+                APROVADOR_ID
+        );
+        verifyNoInteractions(responsavelRepository);
+    }
+
+    @Test
+    @DisplayName("CP-124 / RF11 / RN04 / INV-05 - Recusa aprovação se sala ficou indisponível")
+    void aprovarReservaComSalaIndisponivelLancaExcecaoSemSalvar() {
+        Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
+        when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
+                .thenReturn(Optional.of(reserva));
+        when(responsavelRepository.findById(APROVADOR_ID))
+                .thenReturn(Optional.of(responsavelDeTeste()));
+        when(salaRepository.buscarPorIdComBloqueio(SALA_ID))
+                .thenReturn(Optional.of(new Sala(SALA_ID, 30, StatusSala.EM_MANUTENCAO)));
+
+        IllegalStateException erro = assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.aprovarReserva(
+                        RESERVA_ID, APROVADOR_ID, TipoAprovadorReserva.RESPONSAVEL
+                )
+        );
+
+        assertTrue(erro.getMessage().contains("não está disponível"));
+        assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
+        verify(salaRepository).buscarPorIdComBloqueio(SALA_ID);
+        verify(reservaRepository, never()).contarConflitos(
+                any(), any(), any(), any(), any()
+        );
+        verify(reservaRepository, never()).save(any(Reserva.class));
+        verify(responsavelRepository).findById(APROVADOR_ID);
+        verifyNoInteractions(solicitanteRepository, materialRepository);
+    }
+
+    @ParameterizedTest(name = "CP-125–127 / RF08-RF09 / RN02-RN03 - Conflito de {0} impede aprovação")
+    @EnumSource(TipoConflitoAprovacao.class)
+    void aprovarReservaComConflitoDeRecursoLancaExcecaoSemSalvar(
+            TipoConflitoAprovacao tipoConflito
+    ) {
+        Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
+        prepararAprovacaoSemConflito(reserva);
+        when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
+                .thenReturn(Optional.of(reserva));
+        when(responsavelRepository.findById(APROVADOR_ID))
+                .thenReturn(Optional.of(responsavelDeTeste()));
+        simularConflito(tipoConflito);
+
+        IllegalStateException erro = assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.aprovarReserva(
+                        RESERVA_ID, APROVADOR_ID, TipoAprovadorReserva.RESPONSAVEL
+                )
+        );
+
+        assertTrue(erro.getMessage().contains(tipoConflito.mensagem));
+        assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
+        verify(reservaRepository, never()).save(any(Reserva.class));
+        verify(responsavelRepository).findById(APROVADOR_ID);
+    }
+
+    @Test
+    @DisplayName("CP-129 / CB-74 / RF15 / RN06-RN07 - Inicia no horário reservado e audita")
+    void iniciarUtilizacaoNoInstanteDeInicioMudaEstadoEAudita() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(INICIO);
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        Reserva resultado = reservaService.iniciarUtilizacao(RESERVA_ID);
+
+        assertEquals(StatusReserva.EM_USO, resultado.getStatus());
+        verificarAuditoria(StatusReserva.APROVADA, StatusReserva.EM_USO, INICIO);
+    }
+
+    @Test
+    @DisplayName("CP-130 / CB-75 / RF15 / RN06 - Inicia imediatamente antes do fim")
+    void iniciarUtilizacaoImediatamenteAntesDoFimEPermitido() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(FIM.minusNanos(1));
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        Reserva resultado = reservaService.iniciarUtilizacao(RESERVA_ID);
+
+        assertEquals(StatusReserva.EM_USO, resultado.getStatus());
+    }
+
+    @ParameterizedTest(name = "CP-131 / CB-76 / RF15 / RN06 - Início recusado às {0}")
+    @MethodSource("limitesInicioInvalidos")
+    void iniciarUtilizacaoForaDoIntervaloReservadoERecusado(LocalDateTime agora) {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(agora);
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.iniciarUtilizacao(RESERVA_ID)
+        );
+
+        assertEquals(StatusReserva.APROVADA, reserva.getStatus());
+        verificarNenhumaAuditoriaOuPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-132 / CB-77 / RF15 / RN06-RN07 - Ausência exatamente no fim")
+    void registrarNaoComparecimentoNoFimExatoEAuditado() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(FIM);
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        Reserva resultado = reservaService.registrarNaoComparecimento(RESERVA_ID);
+
+        assertEquals(StatusReserva.NAO_COMPARECEU, resultado.getStatus());
+        verificarAuditoria(
+                StatusReserva.APROVADA, StatusReserva.NAO_COMPARECEU, FIM
+        );
+    }
+
+    @Test
+    @DisplayName("CP-133 / CB-78 / RF15 / RN06 - Ausência recusada antes do fim")
+    void registrarNaoComparecimentoAntesDoFimERecusado() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(FIM.minusNanos(1));
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.registrarNaoComparecimento(RESERVA_ID)
+        );
+
+        assertEquals(StatusReserva.APROVADA, reserva.getStatus());
+        verificarNenhumaAuditoriaOuPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-134 / CB-79 / RF15 / RN06-RN07 - Conclui antes do fim e audita")
+    void concluirUtilizacaoAntesDoFimEPermitido() {
+        Reserva reserva = reservaOperacional(StatusReserva.EM_USO);
+        definirRelogio(INICIO.plusMinutes(30));
+        autenticarResponsavel(APROVADOR_ID);
+        prepararReservaOperacional(reserva);
+
+        Reserva resultado = reservaService.concluirUtilizacao(RESERVA_ID);
+
+        assertEquals(StatusReserva.CONCLUIDA, resultado.getStatus());
+        verificarAuditoria(
+                StatusReserva.EM_USO, StatusReserva.CONCLUIDA, INICIO.plusMinutes(30)
+        );
+    }
+
+    @Test
+    @DisplayName("CP-135 / CB-80 / RF02 / RF15 - Solicitante não opera transições")
+    void solicitanteNaoPodeIniciarUtilizacao() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        definirRelogio(INICIO);
+        ContextoAutenticacao.definir(new UsuarioAutenticado(
+                SOLICITANTE_ID, "Solicitante", null, PerfilUsuario.SOLICITANTE,
+                TipoSolicitante.PROFESSOR
+        ));
+        prepararReservaOperacional(reserva);
+
+        assertThrows(
+                AcessoNegadoException.class,
+                () -> reservaService.iniciarUtilizacao(RESERVA_ID)
+        );
+
+        verificarNenhumaAuditoriaOuPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-136 / CB-81 / RF02 / RF15 - Responsável não opera reserva alheia")
+    void responsavelDiferenteDoAprovadorNaoPodeConcluirUtilizacao() {
+        Reserva reserva = reservaOperacional(StatusReserva.EM_USO);
+        definirRelogio(INICIO.plusMinutes(30));
+        autenticarResponsavel(99L);
+        prepararReservaOperacional(reserva);
+
+        assertThrows(
+                AcessoNegadoException.class,
+                () -> reservaService.concluirUtilizacao(RESERVA_ID)
+        );
+
+        verificarNenhumaAuditoriaOuPersistencia();
+    }
+
+    @Test
+    @DisplayName("CP-137 / CB-82 / RF02 / RF15 - Administrador opera qualquer reserva")
+    void administradorPodeIniciarUtilizacaoEmQualquerReserva() {
+        Reserva reserva = reservaOperacional(StatusReserva.APROVADA);
+        reserva.setResponsavel(null);
+        definirRelogio(INICIO);
+        ContextoAutenticacao.definir(new UsuarioAutenticado(
+                99L, "Administrador", null, PerfilUsuario.ADMINISTRADOR, null
+        ));
+        prepararReservaOperacional(reserva);
+
+        Reserva resultado = reservaService.iniciarUtilizacao(RESERVA_ID);
+
+        assertEquals(StatusReserva.EM_USO, resultado.getStatus());
+        ArgumentCaptor<AuditoriaReserva> evento = ArgumentCaptor.forClass(AuditoriaReserva.class);
+        verify(auditoriaReservaRepository).save(evento.capture());
+        assertEquals(99L, evento.getValue().getUsuarioId());
+        assertEquals(PerfilUsuario.ADMINISTRADOR, evento.getValue().getPerfilUsuario());
     }
 
     @Test
@@ -1350,7 +1612,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(inicio),
                 eq(fim),
@@ -1360,9 +1624,155 @@ class ReservaServiceTest {
                 .when(reservaRepository).save(any(Reserva.class));
     }
 
+    private void prepararAprovacaoSemConflito(Reserva reserva) {
+        Solicitante professor = solicitanteProfessor();
+        Material material = new Material(MATERIAL_ID, "Projetor");
+        reserva.setProfessores(Set.of(professor));
+        reserva.setMateriais(Set.of(material));
+
+        when(salaRepository.buscarPorIdComBloqueio(SALA_ID))
+                .thenReturn(Optional.of(salaDisponivel()));
+        when(solicitanteRepository.buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        )).thenReturn(Optional.of(professor));
+        when(materialRepository.buscarPorIdComBloqueio(MATERIAL_ID))
+                .thenReturn(Optional.of(material));
+        when(reservaRepository.contarConflitos(
+                eq(SALA_ID), eq(EnumSet.of(
+                        StatusReserva.APROVADA, StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA, StatusReserva.NAO_COMPARECEU
+                )),
+                eq(INICIO), eq(FIM), eq(RESERVA_ID)
+        )).thenReturn(0L);
+        when(reservaRepository.contarConflitosPorProfessor(
+                eq(SOLICITANTE_ID), eq(EnumSet.of(
+                        StatusReserva.APROVADA, StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA, StatusReserva.NAO_COMPARECEU
+                )),
+                eq(INICIO), eq(FIM), eq(RESERVA_ID)
+        )).thenReturn(0L);
+        when(reservaRepository.contarConflitosPorMaterial(
+                eq(MATERIAL_ID), eq(EnumSet.of(
+                        StatusReserva.APROVADA, StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA, StatusReserva.NAO_COMPARECEU
+                )),
+                eq(INICIO), eq(FIM), eq(RESERVA_ID)
+        )).thenReturn(0L);
+    }
+
+    private Reserva reservaOperacional(StatusReserva status) {
+        Reserva reserva = reservaParaAlteracao(status);
+        reserva.setResponsavel(responsavelDeTeste());
+        return reserva;
+    }
+
+    private void prepararReservaOperacional(Reserva reserva) {
+        when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
+                .thenReturn(Optional.of(reserva));
+        when(reservaRepository.save(reserva)).thenReturn(reserva);
+    }
+
+    private void definirRelogio(LocalDateTime agora) {
+        reservaService = criarReservaService(
+                Clock.fixed(agora.toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
+        );
+    }
+
+    private void autenticarResponsavel(Long id) {
+        ContextoAutenticacao.definir(new UsuarioAutenticado(
+                id, "Responsável", null, PerfilUsuario.RESPONSAVEL, null
+        ));
+    }
+
+    private void verificarAuditoria(
+            StatusReserva estadoAnterior,
+            StatusReserva novoEstado
+    ) {
+        verificarAuditoria(estadoAnterior, novoEstado, AGORA);
+    }
+
+    private void verificarAuditoria(
+            StatusReserva estadoAnterior,
+            StatusReserva novoEstado,
+            LocalDateTime dataHora
+    ) {
+        verificarAuditoria(
+                estadoAnterior, novoEstado, dataHora,
+                PerfilUsuario.RESPONSAVEL, APROVADOR_ID
+        );
+    }
+
+    private void verificarAuditoria(
+            StatusReserva estadoAnterior,
+            StatusReserva novoEstado,
+            LocalDateTime dataHora,
+            PerfilUsuario perfil,
+            Long usuarioId
+    ) {
+        ArgumentCaptor<AuditoriaReserva> evento = ArgumentCaptor.forClass(AuditoriaReserva.class);
+        verify(auditoriaReservaRepository).save(evento.capture());
+        assertEquals(RESERVA_ID, evento.getValue().getReserva().getId());
+        assertEquals(estadoAnterior, evento.getValue().getEstadoAnterior());
+        assertEquals(novoEstado, evento.getValue().getNovoEstado());
+        assertEquals(usuarioId, evento.getValue().getUsuarioId());
+        assertEquals(perfil, evento.getValue().getPerfilUsuario());
+        assertEquals(dataHora, evento.getValue().getDataHora());
+    }
+
+    private void verificarNenhumaAuditoriaOuPersistencia() {
+        verify(reservaRepository, never()).save(any(Reserva.class));
+        verify(auditoriaReservaRepository, never()).save(any(AuditoriaReserva.class));
+    }
+
+    private void verificarRevalidacaoAprovacao() {
+        Set<StatusReserva> statusConfirmados = EnumSet.of(
+                StatusReserva.APROVADA,
+                StatusReserva.EM_USO,
+                StatusReserva.CONCLUIDA,
+                StatusReserva.NAO_COMPARECEU
+        );
+        verify(salaRepository).buscarPorIdComBloqueio(SALA_ID);
+        verify(solicitanteRepository).buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        );
+        verify(materialRepository).buscarPorIdComBloqueio(MATERIAL_ID);
+        verify(reservaRepository).contarConflitos(
+                SALA_ID, statusConfirmados, INICIO, FIM, RESERVA_ID
+        );
+        verify(reservaRepository).contarConflitosPorProfessor(
+                SOLICITANTE_ID, statusConfirmados, INICIO, FIM, RESERVA_ID
+        );
+        verify(reservaRepository).contarConflitosPorMaterial(
+                MATERIAL_ID, statusConfirmados, INICIO, FIM, RESERVA_ID
+        );
+    }
+
+    private void simularConflito(TipoConflitoAprovacao tipoConflito) {
+        Set<StatusReserva> statusConfirmados = EnumSet.of(
+                StatusReserva.APROVADA,
+                StatusReserva.EM_USO,
+                StatusReserva.CONCLUIDA,
+                StatusReserva.NAO_COMPARECEU
+        );
+        switch (tipoConflito) {
+            case SALA -> when(reservaRepository.contarConflitos(
+                    eq(SALA_ID), eq(statusConfirmados), eq(INICIO), eq(FIM), eq(RESERVA_ID)
+            )).thenReturn(1L);
+            case PROFESSOR -> when(reservaRepository.contarConflitosPorProfessor(
+                    eq(SOLICITANTE_ID), eq(statusConfirmados),
+                    eq(INICIO), eq(FIM), eq(RESERVA_ID)
+            )).thenReturn(1L);
+            case MATERIAL -> when(reservaRepository.contarConflitosPorMaterial(
+                    eq(MATERIAL_ID), eq(statusConfirmados),
+                    eq(INICIO), eq(FIM), eq(RESERVA_ID)
+            )).thenReturn(1L);
+        }
+    }
+
     private ReservaService criarReservaService(Clock clock) {
         return new ReservaService(
                 reservaRepository,
+                auditoriaReservaRepository,
                 salaRepository,
                 solicitanteRepository,
                 responsavelRepository,
@@ -1382,7 +1792,9 @@ class ReservaServiceTest {
                 eq(EnumSet.of(
                         StatusReserva.SOLICITADA,
                         StatusReserva.APROVADA,
-                        StatusReserva.EM_USO
+                        StatusReserva.EM_USO,
+                        StatusReserva.CONCLUIDA,
+                        StatusReserva.NAO_COMPARECEU
                 )),
                 eq(inicio),
                 eq(fim),
@@ -1441,6 +1853,13 @@ class ReservaServiceTest {
                         "fim anterior ao início", diaFuturo.plusHours(1), diaFuturo,
                         "posterior"
                 )
+        );
+    }
+
+    private static Stream<Arguments> limitesInicioInvalidos() {
+        return Stream.of(
+                Arguments.of(INICIO.minusNanos(1)),
+                Arguments.of(FIM)
         );
     }
 
@@ -1509,5 +1928,17 @@ class ReservaServiceTest {
         Administrador administrador = new Administrador();
         administrador.setId(APROVADOR_ID);
         return administrador;
+    }
+
+    private enum TipoConflitoAprovacao {
+        SALA("sala"),
+        PROFESSOR("professor"),
+        MATERIAL("material");
+
+        private final String mensagem;
+
+        TipoConflitoAprovacao(String mensagem) {
+            this.mensagem = mensagem;
+        }
     }
 }

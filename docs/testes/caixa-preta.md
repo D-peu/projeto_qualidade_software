@@ -201,6 +201,11 @@ Pré-condição: reserva SOLICITADA de P1 em S1. Endpoints: POST `/aprovacao` e 
 | CP-64 | PE | `usuarioId` ausente | 400 |
 | CP-65 | VL | `usuarioId` igual a 0 | 400 |
 | CP-66 | PE | Rejeita reserva inexistente | 404 |
+| CP-124 | PE | Reserva SOLICITADA em S1; S1 passa a EM_MANUTENCAO antes da aprovação | 409; a reserva continua SOLICITADA e não é salva como APROVADA |
+| CP-125 | PE | E SOLICITADA sobrepõe reserva APROVADA da mesma sala | 409; E continua SOLICITADA |
+| CP-126 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo professor em outra sala | 409; E continua SOLICITADA |
+| CP-127 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo material em outra sala | 409; E continua SOLICITADA |
+| CP-128 | C | Duas reservas SOLICITADAS preexistentes e conflitantes são aprovadas simultaneamente no PostgreSQL | Exatamente uma fica APROVADA; a outra recebe 409 e permanece SOLICITADA |
 
 ## 8. Cancelamento e alteração por solicitante (INV-09 e INV-10)
 
@@ -261,8 +266,39 @@ Cada linha parte de uma reserva no estado de origem e aplica uma operação. O r
 | TR-14 | CANCELADA | Rejeitar | 409 |
 | TR-15 | CANCELADA | Cancelar | 409 |
 | TR-16 | CANCELADA | Alterar horário | 409 |
+| TR-17 | APROVADA | Iniciar em `[inicio, fim)` | 200, EM_USO |
+| TR-18 | EM_USO | Concluir, inclusive antes de `fim` | 200, CONCLUIDA |
+| TR-19 | APROVADA | Registrar não comparecimento em ou após `fim` | 200, NAO_COMPARECEU |
 
-Os estados EM_USO, CONCLUIDA e NAO_COMPARECEU **não são alcançáveis pela API** hoje (RF15 está parcial). Não há transições executáveis a partir deles.
+### Transições operacionais (RF15, RN06, RN07)
+
+Relógio controlado. Administrador pode operar qualquer reserva; Responsável, somente quando seu ID autenticado for igual a `Reserva.responsavel`; Solicitante não pode executar as operações. O Responsável que aprova a reserva passa a assumir sua responsabilidade operacional.
+
+| ID | Técnica | Pré-condição e entrada | Resultado esperado |
+|---|---|---|---|
+| CP-129 | U | `APROVADA`, agora exatamente em `inicio`, ator Responsável vinculado | `EM_USO`, auditoria `APROVADA` → `EM_USO` |
+| CP-130 | U | `APROVADA`, agora um nanossegundo antes de `fim` | Início permitido; `EM_USO` |
+| CP-131 | U | `APROVADA`, agora antes de `inicio` ou exatamente em `fim` | 409; estado e auditoria inalterados |
+| CP-132 | U | `APROVADA`, agora exatamente em `fim` | `NAO_COMPARECEU`, auditoria registrada |
+| CP-133 | U | `APROVADA`, agora um nanossegundo antes de `fim`; POST `/nao-comparecimento` | 409; estado e auditoria inalterados |
+| CP-134 | U | `EM_USO`, agora antes de `fim` | `CONCLUIDA`, auditoria registrada |
+| CP-135 | U | Solicitante tenta qualquer transição operacional | Acesso negado; estado inalterado |
+| CP-136 | U | Responsável diferente do armazenado em `Reserva.responsavel` tenta operar | 403; estado inalterado |
+| CP-137 | U | Administrador atua em reserva sem Responsável associado | Operação permitida e ator registrado como Administrador |
+| CP-138 | I | Criar reserva pelo serviço no PostgreSQL | Um evento com estado anterior nulo e novo `SOLICITADA` persiste com a reserva |
+| CP-139 | I | Responsável autorizado conclui uma reserva `EM_USO` no PostgreSQL | `CONCLUIDA` e evento com estados anterior/novo, ator e data/hora persistidos |
+| CP-140 | I | Reserva `CONCLUIDA` antecipadamente; pedir intervalo que sobrepõe o original, antes de seu fim | 409; intervalo original permanece ocupado |
+| CP-141 | I | Contexto autenticado como Solicitante tenta concluir reserva persistida | Acesso negado; estado permanece `EM_USO` e nenhum evento de transição é gravado |
+| CP-142 | PE | Administrador autenticado opera via HTTP reserva sob responsabilidade alheia, em cada uma das três operações | 200; estado e auditoria persistidos registram o Administrador da sessão |
+| CP-143 | PE | Responsável autenticado opera via HTTP sua própria reserva, em cada uma das três operações | 200; estado e auditoria persistidos registram o Responsável da sessão |
+| CP-144 | PE | Responsável autenticado tenta via HTTP operar reserva de outro Responsável, em cada operação | 403; estado permanece e auditoria não é criada, mesmo enviando ID/perfil forjados no corpo |
+| CP-145 | PE | Solicitante autenticado tenta via HTTP cada uma das três operações | 403; estado permanece e auditoria não é criada, mesmo enviando dados de Administrador no corpo |
+| CP-146 | PE | Sessão anônima com CSRF válido tenta cada operação | 401; estado permanece e auditoria não é criada |
+| CP-147 | PE | Sessão autenticada sem `X-CSRF-Token` tenta cada operação | 403; estado permanece e auditoria não é criada |
+| CP-148 | PE | Sessão autenticada com token CSRF inválido tenta cada operação | 403; estado permanece e auditoria não é criada |
+| CP-149 | PE | Requisição sem sessão e sem token CSRF tenta cada operação | 403; o interceptor verifica CSRF antes de autenticação; estado e auditoria permanecem inalterados |
+
+O intervalo segue `[inicio, fim)`: concluir antecipadamente ou registrar ausência não o encurta; reserva consecutiva iniciada exatamente em `fim` permanece permitida.
 
 ## 12. Intervalos futuros em incrementos de 30 minutos (RF07, RN01)
 
@@ -309,7 +345,8 @@ Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente 
 | Bloqueios e manutenção por período | Não há agenda nem endpoint | INV-07 |
 | Autenticação e autorização por perfil | Login, sessão e regras de perfil têm testes Java; falta jornada E2E de navegador | INV-08 |
 | Auditoria e não exclusão | Não há auditoria | INV-13 |
-| Estados EM_USO, CONCLUIDA e NAO_COMPARECEU | Nenhum endpoint os alcança | INV-09 |
+| Expiração automática e alterações pendentes | Previstas em RF15/RN12, mas ainda sem implementação | INV-09 |
+| Auditoria de alterações de horário e consulta do histórico | Não implementadas | INV-13 |
 | Notificação | Não há cliente de notificação | INV-16 |
 
 Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não podem ser reportados como aprovados.
@@ -318,10 +355,10 @@ Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não p
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-123) | 123 |
+| Casos de execução (CP-01 a CP-149) | 149 |
 | Transições de estado (TR-01 a TR-16) | 16 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
-| Executáveis só com estado preparado no banco | CP-38 e CP-45 |
+| Executáveis com estado preparado no banco | CP-38, CP-45, CP-125–128 e CP-138–149 |
 | Com decisão pendente | CP-55, TD-02, TD-03 e TD-04 |
 | Com verificação adicional | CP-80 e CP-83 |
 | Lacunas de contrato | CP-71, CP-75 e CP-88 |

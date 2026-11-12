@@ -114,7 +114,7 @@ public class Reserva {
             );
         }
 
-        validarSolicitada();
+        validarSolicitadaParaDecisao();
         this.responsavel = responsavel;
         this.administrador = null;
         registrarAprovacao();
@@ -127,7 +127,7 @@ public class Reserva {
             );
         }
 
-        validarSolicitada();
+        validarSolicitadaParaDecisao();
         this.responsavel = null;
         this.administrador = administrador;
         registrarAprovacao();
@@ -140,7 +140,7 @@ public class Reserva {
             );
         }
 
-        validarSolicitada();
+        validarSolicitadaParaDecisao();
         this.responsavel = responsavel;
         this.administrador = null;
         this.status = StatusReserva.REJEITADA;
@@ -153,16 +153,55 @@ public class Reserva {
             );
         }
 
-        validarSolicitada();
+        validarSolicitadaParaDecisao();
         this.responsavel = null;
         this.administrador = administrador;
         this.status = StatusReserva.REJEITADA;
     }
 
-    private void validarSolicitada() {
+    public void validarSolicitadaParaDecisao() {
         if (status != StatusReserva.SOLICITADA) {
             throw new IllegalStateException(
                     "Somente reservas solicitadas podem receber uma decisão."
+            );
+        }
+    }
+
+    public void iniciarUtilizacao() {
+        validarPodeIniciarUtilizacao();
+        status = StatusReserva.EM_USO;
+    }
+
+    public void concluirUtilizacao() {
+        validarPodeConcluirUtilizacao();
+        status = StatusReserva.CONCLUIDA;
+    }
+
+    public void registrarNaoComparecimento() {
+        validarPodeRegistrarNaoComparecimento();
+        status = StatusReserva.NAO_COMPARECEU;
+    }
+
+    public void validarPodeIniciarUtilizacao() {
+        if (status != StatusReserva.APROVADA) {
+            throw new IllegalStateException(
+                    "Somente reservas aprovadas podem iniciar a utilização."
+            );
+        }
+    }
+
+    public void validarPodeConcluirUtilizacao() {
+        if (status != StatusReserva.EM_USO) {
+            throw new IllegalStateException(
+                    "Somente reservas em uso podem ser concluídas."
+            );
+        }
+    }
+
+    public void validarPodeRegistrarNaoComparecimento() {
+        if (status != StatusReserva.APROVADA) {
+            throw new IllegalStateException(
+                    "Somente reservas aprovadas podem registrar não comparecimento."
             );
         }
     }

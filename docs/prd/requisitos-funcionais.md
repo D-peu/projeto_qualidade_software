@@ -91,8 +91,9 @@ Esta matriz registra o que o backend existente realmente garante. Ela nao substi
 | RF09 | Implementado | Bloqueios pessimistas dos recursos em ordem determinística e testes PostgreSQL concorrentes verificam que sala, docente ou material compartilhado não é reservado em duplicidade. |
 | RF10 | Parcial | Decisão exige sessão de Responsável ou Administrador e registra o decisor. Não há classificação de recurso restrito para exigir aprovação somente nesses casos. |
 | RF11 | Parcial | A reserva rejeita sala cujo estado nao seja `DISPONIVEL`; nao ha agenda de bloqueios/manutencoes nem endpoint administrativo. |
-| RF12-RF14 | Pendente | Validacao de alocacao docente, movimentacao de material e auditoria nao estao implementadas. |
-| RF15 | Parcial | Os estados existem no enum, mas a API nao oferece o ciclo completo ate `EM_USO`, `CONCLUIDA` e `NAO_COMPARECEU`. |
+| RF12-RF13 | Pendente | Validacao de alocacao docente e movimentacao de material nao estao implementadas. |
+| RF14 | Parcial | A criacao e as mudancas de estado geram auditoria transacional; alteracoes de horario e consulta do historico ainda nao estao implementadas. |
+| RF15 | Parcial | A API permite iniciar, concluir e registrar nao comparecimento com autorizacao e limites temporais. `EXPIRADA` e as regras de expiracao/alteracoes pendentes ainda nao estao implementadas. |
 | RF16 | Pendente | Relatorios ainda nao estao implementados. |
 | RF17 | Parcial | O frontend responsivo apresenta estados e erros da API e oferece telas por perfil autenticado; verificação em navegador real permanece pendente. |
 | RF18 | Implementado parcialmente | A API de autenticação, catálogos e reservas tem contrato OpenAPI e guia; fluxos mais amplos previstos no PRD ainda não foram implementados ou documentados. |

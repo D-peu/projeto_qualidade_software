@@ -264,6 +264,47 @@ class ReservaControllerTest {
     }
 
     @Test
+    void iniciarUtilizacaoRetornaReservaEmUsoSemIdentidadeNoCorpo() throws Exception {
+        when(reservaService.iniciarUtilizacao(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.EM_USO));
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/iniciar", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("EM_USO"));
+
+        verify(reservaService).iniciarUtilizacao(RESERVA_ID);
+    }
+
+    @Test
+    void concluirUtilizacaoRetornaReservaConcluidaSemIdentidadeNoCorpo() throws Exception {
+        when(reservaService.concluirUtilizacao(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.CONCLUIDA));
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/concluir", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("CONCLUIDA"));
+
+        verify(reservaService).concluirUtilizacao(RESERVA_ID);
+    }
+
+    @Test
+    void registrarNaoComparecimentoRetornaEstadoCorrespondente() throws Exception {
+        when(reservaService.registrarNaoComparecimento(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.NAO_COMPARECEU));
+
+        mockMvc.perform(post(
+                        "/api/reservas/{reservaId}/nao-comparecimento", RESERVA_ID
+                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("NAO_COMPARECEU"));
+
+        verify(reservaService).registrarNaoComparecimento(RESERVA_ID);
+    }
+
+    @Test
     void buscarReservaInexistenteRetornaNotFound() throws Exception {
         when(reservaService.buscarReserva(RESERVA_ID))
                 .thenThrow(new EntityNotFoundException("Reserva não encontrada: " + RESERVA_ID));
