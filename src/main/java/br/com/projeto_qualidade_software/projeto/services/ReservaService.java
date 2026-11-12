@@ -1,6 +1,7 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.Administrador;
+import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
 import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
@@ -10,8 +11,11 @@ import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
+import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
+import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.AuditoriaReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
@@ -38,10 +42,19 @@ public class ReservaService {
     private static final Set<StatusReserva> STATUS_QUE_OCUPAM_SALA = EnumSet.of(
             StatusReserva.SOLICITADA,
             StatusReserva.APROVADA,
-            StatusReserva.EM_USO
+            StatusReserva.EM_USO,
+            StatusReserva.CONCLUIDA,
+            StatusReserva.NAO_COMPARECEU
+    );
+    private static final Set<StatusReserva> STATUS_QUE_BLOQUEIAM_APROVACAO = EnumSet.of(
+            StatusReserva.APROVADA,
+            StatusReserva.EM_USO,
+            StatusReserva.CONCLUIDA,
+            StatusReserva.NAO_COMPARECEU
     );
 
     private final ReservaRepository reservaRepository;
+    private final AuditoriaReservaRepository auditoriaReservaRepository;
     private final SalaRepository salaRepository;
     private final SolicitanteRepository solicitanteRepository;
     private final ResponsavelRepository responsavelRepository;
@@ -51,6 +64,7 @@ public class ReservaService {
 
     public ReservaService(
             ReservaRepository reservaRepository,
+            AuditoriaReservaRepository auditoriaReservaRepository,
             SalaRepository salaRepository,
             SolicitanteRepository solicitanteRepository,
             ResponsavelRepository responsavelRepository,
@@ -59,6 +73,7 @@ public class ReservaService {
             Clock clock
     ) {
         this.reservaRepository = reservaRepository;
+        this.auditoriaReservaRepository = auditoriaReservaRepository;
         this.salaRepository = salaRepository;
         this.solicitanteRepository = solicitanteRepository;
         this.responsavelRepository = responsavelRepository;
@@ -91,6 +106,7 @@ public class ReservaService {
             List<Long> materialIds
     ) {
         ContextoAutenticacao.exigirSolicitante(solicitanteId, tipoSolicitante);
+        UsuarioAutenticado ator = atorDaSolicitacao(solicitanteId, tipoSolicitante);
         validarIntervalo(inicio, fim);
         Sala sala = buscarSalaBloqueada(salaId);
         validarDisponibilidadeDaSala(sala);
@@ -128,7 +144,11 @@ public class ReservaService {
         reserva.setInicio(inicio);
         reserva.setFim(fim);
         reserva.setStatus(StatusReserva.SOLICITADA);
-        return reservaRepository.save(reserva);
+        LocalDateTime agora = LocalDateTime.now(clock);
+        reserva.setSolicitadoEm(agora);
+        Reserva salva = reservaRepository.save(reserva);
+        registrarAuditoria(salva, null, StatusReserva.SOLICITADA, ator, agora);
+        return salva;
     }
 
     @Transactional
@@ -177,8 +197,10 @@ public class ReservaService {
             );
         }
 
+        StatusReserva estadoAnterior = reserva.getStatus();
         reserva.setStatus(StatusReserva.CANCELADA);
-        return reservaRepository.save(reserva);
+        UsuarioAutenticado ator = atorDaSessaoOuSolicitante(solicitanteId);
+        return salvarTransicao(reserva, estadoAnterior, ator);
     }
 
     @Transactional
@@ -189,16 +211,46 @@ public class ReservaService {
     ) {
         ContextoAutenticacao.exigirAprovador(usuarioId, tipoAprovador);
         Reserva reserva = buscarReservaBloqueada(reservaId);
+        UsuarioAutenticado ator = atorDoAprovador(usuarioId, tipoAprovador);
+        Responsavel responsavel = null;
+        Administrador administrador = null;
         if (tipoAprovador == TipoAprovadorReserva.RESPONSAVEL) {
-            reserva.aprovar(buscarResponsavel(usuarioId));
+            responsavel = buscarResponsavel(usuarioId);
         } else if (tipoAprovador == TipoAprovadorReserva.ADMINISTRADOR) {
-            reserva.aprovar(buscarAdministrador(usuarioId));
+            administrador = buscarAdministrador(usuarioId);
         } else {
             throw new AcessoNegadoException(
                     "Somente Responsável ou Administrador pode aprovar reservas."
             );
         }
-        return reservaRepository.save(reserva);
+
+        reserva.validarSolicitadaParaDecisao();
+        Sala sala = buscarSalaBloqueada(reserva.getSala().getId());
+        validarDisponibilidadeDaSala(sala);
+
+        Set<Long> professorIds = new TreeSet<>();
+        reserva.getProfessores().forEach(professor -> professorIds.add(professor.getId()));
+        Set<Long> materialIds = new TreeSet<>();
+        reserva.getMateriais().forEach(material -> materialIds.add(material.getId()));
+        buscarProfessoresBloqueados(professorIds);
+        buscarMateriaisBloqueados(materialIds);
+        validarAusenciaDeConflito(
+                sala.getId(),
+                professorIds,
+                materialIds,
+                reserva.getInicio(),
+                reserva.getFim(),
+                reserva.getId(),
+                STATUS_QUE_BLOQUEIAM_APROVACAO
+        );
+
+        StatusReserva estadoAnterior = reserva.getStatus();
+        if (responsavel != null) {
+            reserva.aprovar(responsavel);
+        } else {
+            reserva.aprovar(administrador);
+        }
+        return salvarTransicao(reserva, estadoAnterior, ator);
     }
 
     @Transactional
@@ -209,6 +261,8 @@ public class ReservaService {
     ) {
         ContextoAutenticacao.exigirAprovador(usuarioId, tipoAprovador);
         Reserva reserva = buscarReservaBloqueada(reservaId);
+        UsuarioAutenticado ator = atorDoAprovador(usuarioId, tipoAprovador);
+        StatusReserva estadoAnterior = reserva.getStatus();
         if (tipoAprovador == TipoAprovadorReserva.RESPONSAVEL) {
             reserva.rejeitar(buscarResponsavel(usuarioId));
         } else if (tipoAprovador == TipoAprovadorReserva.ADMINISTRADOR) {
@@ -218,7 +272,57 @@ public class ReservaService {
                     "Somente Responsável ou Administrador pode decidir reservas."
             );
         }
-        return reservaRepository.save(reserva);
+        return salvarTransicao(reserva, estadoAnterior, ator);
+    }
+
+    @Transactional
+    public Reserva iniciarUtilizacao(Long reservaId) {
+        UsuarioAutenticado ator = ContextoAutenticacao.exigirResponsavelOuAdministrador();
+        Reserva reserva = buscarReservaBloqueada(reservaId);
+        validarPermissaoOperacional(reserva, ator);
+        reserva.validarPodeIniciarUtilizacao();
+
+        LocalDateTime agora = LocalDateTime.now(clock);
+        if (agora.isBefore(reserva.getInicio()) || !agora.isBefore(reserva.getFim())) {
+            throw new IllegalStateException(
+                    "A utilização só pode iniciar durante o intervalo reservado."
+            );
+        }
+
+        StatusReserva estadoAnterior = reserva.getStatus();
+        reserva.iniciarUtilizacao();
+        return salvarTransicao(reserva, estadoAnterior, ator, agora);
+    }
+
+    @Transactional
+    public Reserva concluirUtilizacao(Long reservaId) {
+        UsuarioAutenticado ator = ContextoAutenticacao.exigirResponsavelOuAdministrador();
+        Reserva reserva = buscarReservaBloqueada(reservaId);
+        validarPermissaoOperacional(reserva, ator);
+        reserva.validarPodeConcluirUtilizacao();
+
+        StatusReserva estadoAnterior = reserva.getStatus();
+        reserva.concluirUtilizacao();
+        return salvarTransicao(reserva, estadoAnterior, ator);
+    }
+
+    @Transactional
+    public Reserva registrarNaoComparecimento(Long reservaId) {
+        UsuarioAutenticado ator = ContextoAutenticacao.exigirResponsavelOuAdministrador();
+        Reserva reserva = buscarReservaBloqueada(reservaId);
+        validarPermissaoOperacional(reserva, ator);
+        reserva.validarPodeRegistrarNaoComparecimento();
+
+        LocalDateTime agora = LocalDateTime.now(clock);
+        if (agora.isBefore(reserva.getFim())) {
+            throw new IllegalStateException(
+                    "O não comparecimento só pode ser registrado após o fim reservado."
+            );
+        }
+
+        StatusReserva estadoAnterior = reserva.getStatus();
+        reserva.registrarNaoComparecimento();
+        return salvarTransicao(reserva, estadoAnterior, ator, agora);
     }
 
     @Transactional(readOnly = true)
@@ -246,6 +350,93 @@ public class ReservaService {
     @Transactional(readOnly = true)
     public List<Reserva> listarReservasPendentes() {
         return listarReservas(StatusReserva.SOLICITADA);
+    }
+
+    private void validarPermissaoOperacional(Reserva reserva, UsuarioAutenticado ator) {
+        if (ator.perfil() == PerfilUsuario.RESPONSAVEL
+                && (reserva.getResponsavel() == null
+                || !Objects.equals(reserva.getResponsavel().getId(), ator.id()))) {
+            throw new AcessoNegadoException(
+                    "O Responsável só pode operar reservas sob sua responsabilidade."
+            );
+        }
+    }
+
+    private UsuarioAutenticado atorDaSolicitacao(
+            Long solicitanteId,
+            TipoSolicitante tipoSolicitante
+    ) {
+        UsuarioAutenticado ator = ContextoAutenticacao.usuarioAtual();
+        return ator == null
+                ? new UsuarioAutenticado(
+                        solicitanteId, null, null, PerfilUsuario.SOLICITANTE, tipoSolicitante
+                )
+                : ator;
+    }
+
+    private UsuarioAutenticado atorDaSessaoOuSolicitante(Long solicitanteId) {
+        UsuarioAutenticado ator = ContextoAutenticacao.usuarioAtual();
+        return ator == null
+                ? new UsuarioAutenticado(
+                        solicitanteId, null, null, PerfilUsuario.SOLICITANTE, null
+                )
+                : ator;
+    }
+
+    private UsuarioAutenticado atorDoAprovador(
+            Long usuarioId,
+            TipoAprovadorReserva tipoAprovador
+    ) {
+        if (tipoAprovador == null) {
+            throw new AcessoNegadoException(
+                    "Somente Responsável ou Administrador pode decidir reservas."
+            );
+        }
+        PerfilUsuario perfil = switch (tipoAprovador) {
+            case RESPONSAVEL -> PerfilUsuario.RESPONSAVEL;
+            case ADMINISTRADOR -> PerfilUsuario.ADMINISTRADOR;
+        };
+        UsuarioAutenticado ator = ContextoAutenticacao.usuarioAtual();
+        return ator == null
+                ? new UsuarioAutenticado(usuarioId, null, null, perfil, null)
+                : ator;
+    }
+
+    private Reserva salvarTransicao(
+            Reserva reserva,
+            StatusReserva estadoAnterior,
+            UsuarioAutenticado ator
+    ) {
+        return salvarTransicao(reserva, estadoAnterior, ator, LocalDateTime.now(clock));
+    }
+
+    private Reserva salvarTransicao(
+            Reserva reserva,
+            StatusReserva estadoAnterior,
+            UsuarioAutenticado ator,
+            LocalDateTime dataHora
+    ) {
+        Reserva salva = reservaRepository.save(reserva);
+        registrarAuditoria(salva, estadoAnterior, salva.getStatus(), ator, dataHora);
+        return salva;
+    }
+
+    private void registrarAuditoria(
+            Reserva reserva,
+            StatusReserva estadoAnterior,
+            StatusReserva novoEstado,
+            UsuarioAutenticado ator,
+            LocalDateTime dataHora
+    ) {
+        auditoriaReservaRepository.save(new AuditoriaReserva(
+                null,
+                reserva,
+                estadoAnterior,
+                novoEstado,
+                ator.id(),
+                ator.perfil(),
+                dataHora
+        ));
     }
 
     private Reserva buscarReservaBloqueada(Long reservaId) {
@@ -334,9 +525,24 @@ public class ReservaService {
             LocalDateTime fim,
             Long reservaId
     ) {
+        validarAusenciaDeConflito(
+                salaId, professorIds, materialIds, inicio, fim, reservaId,
+                STATUS_QUE_OCUPAM_SALA
+        );
+    }
+
+    private void validarAusenciaDeConflito(
+            Long salaId,
+            Set<Long> professorIds,
+            Set<Long> materialIds,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            Long reservaId,
+            Set<StatusReserva> statusQueConflitam
+    ) {
         if (reservaRepository.contarConflitos(
                 salaId,
-                STATUS_QUE_OCUPAM_SALA,
+                statusQueConflitam,
                 inicio,
                 fim,
                 reservaId
@@ -348,7 +554,7 @@ public class ReservaService {
         for (Long professorId : professorIds) {
             if (reservaRepository.contarConflitosPorProfessor(
                     professorId,
-                    STATUS_QUE_OCUPAM_SALA,
+                    statusQueConflitam,
                     inicio,
                     fim,
                     reservaId
@@ -361,7 +567,7 @@ public class ReservaService {
         for (Long materialId : materialIds) {
             if (reservaRepository.contarConflitosPorMaterial(
                     materialId,
-                    STATUS_QUE_OCUPAM_SALA,
+                    statusQueConflitam,
                     inicio,
                     fim,
                     reservaId

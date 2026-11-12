@@ -139,6 +139,11 @@ class ReservaApiPostgresE2ETest {
     void limparDados() {
         if (salaId != null) {
             jdbcTemplate.update(
+                    "delete from auditorias_reserva where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    salaId
+            );
+            jdbcTemplate.update(
                     "delete from reservas_professores where reserva_id in "
                             + "(select id from reservas where sala_id = ?)",
                     salaId

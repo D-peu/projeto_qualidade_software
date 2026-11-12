@@ -493,6 +493,102 @@ paths:
           $ref: '#/components/responses/Conflito'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/iniciar:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Iniciar utilização de reserva aprovada
+      description: Permitido somente quando agora >= inicio e agora < fim. Administrador pode atuar em qualquer reserva; Responsável somente na reserva sob sua responsabilidade.
+      operationId: iniciarUtilizacao
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/concluir:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Concluir utilização em andamento
+      description: Permitido a qualquer momento após o início. A conclusão não libera antecipadamente o intervalo reservado.
+      operationId: concluirUtilizacao
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/nao-comparecimento:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Registrar não comparecimento
+      description: Permitido somente quando agora >= fim. O intervalo reservado permanece ocupado até o fim original.
+      operationId: registrarNaoComparecimento
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Não comparecimento registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
 components:
   securitySchemes:
     SessionCookie:

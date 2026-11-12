@@ -123,4 +123,19 @@ public class ReservaController {
                 request.tipoAprovador()
         ));
     }
+
+    @PostMapping("/{reservaId}/iniciar")
+    public ReservaResponse iniciarUtilizacao(@PathVariable Long reservaId) {
+        return ReservaResponse.de(reservaService.iniciarUtilizacao(reservaId));
+    }
+
+    @PostMapping("/{reservaId}/concluir")
+    public ReservaResponse concluirUtilizacao(@PathVariable Long reservaId) {
+        return ReservaResponse.de(reservaService.concluirUtilizacao(reservaId));
+    }
+
+    @PostMapping("/{reservaId}/nao-comparecimento")
+    public ReservaResponse registrarNaoComparecimento(@PathVariable Long reservaId) {
+        return ReservaResponse.de(reservaService.registrarNaoComparecimento(reservaId));
+    }
 }
