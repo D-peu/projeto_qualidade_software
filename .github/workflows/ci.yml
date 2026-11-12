@@ -65,7 +65,7 @@ jobs:
             echo "::error::Configure the SONAR_TOKEN repository secret to enable SonarCloud analysis."
             exit 1
           fi
-          ./mvnw -B sonar:sonar \
+          ./mvnw -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             "-Dsonar.organization=$SONAR_ORGANIZATION" \
             "-Dsonar.projectKey=$SONAR_PROJECT_KEY" \
             "-Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml"
