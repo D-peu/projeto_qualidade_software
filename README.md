@@ -49,7 +49,7 @@ CSRF=$(jq -r .csrfToken usuario.json)
 SOLICITANTE_ID=$(jq -r .id usuario.json)
 curl -i -b cookies.txt -X POST http://localhost:8080/api/reservas \
   -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
-  -d "{\"salaId\":1,\"solicitanteId\":$SOLICITANTE_ID,\"tipoSolicitante\":\"PROFESSOR\",\"inicio\":\"2026-11-02T10:00:00\",\"fim\":\"2026-11-02T11:00:00\"}"
+  -d "{\"salaId\":1,\"solicitanteId\":$SOLICITANTE_ID,\"tipoSolicitante\":\"PROFESSOR\",\"inicio\":\"2040-11-02T10:00:00\",\"fim\":\"2040-11-02T11:00:00\"}"
 ```
 
 Contrato completo em [`docs/openapi.yaml`](docs/openapi.yaml) e guia em [`docs/api-reservas.md`](docs/api-reservas.md).

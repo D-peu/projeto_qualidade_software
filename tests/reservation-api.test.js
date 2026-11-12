@@ -38,8 +38,8 @@ test("authenticates with the server session and sends CSRF tokens on mutations",
     salaId: 1,
     solicitanteId: user.id,
     tipoSolicitante: user.tipoSolicitante,
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
@@ -57,8 +57,8 @@ test("authenticates with the server session and sends CSRF tokens on mutations",
     salaId: 1,
     solicitanteId: user.id,
     tipoSolicitante: user.tipoSolicitante,
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
@@ -97,15 +97,15 @@ test("sends reservation mutations using the existing backend contract", async ()
     salaId: 3,
     solicitanteId: 9,
     tipoSolicitante: "PROFESSOR",
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
   await api.changeSchedule(8, {
     solicitanteId: 9,
-    inicio: "2026-11-06T10:00",
-    fim: "2026-11-06T11:00",
+    inicio: "2040-11-06T10:00",
+    fim: "2040-11-06T11:00",
   });
   await api.cancelReservation(8, 9);
   await api.decideReservation(8, 4, "RESPONSAVEL", "aprovacao");

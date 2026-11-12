@@ -16,11 +16,19 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -33,14 +41,17 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.net.URI;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -54,9 +65,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
                 "spring.jpa.hibernate.ddl-auto=create-drop"
         }
 )
+@Import(ReservaApiPostgresE2ETest.FixedClockConfiguration.class)
 @Testcontainers
 class ReservaApiPostgresE2ETest {
 
+    private static final LocalDateTime AGORA = LocalDateTime.of(2030, 10, 25, 10, 0);
     private static final LocalDateTime INICIO =
             LocalDateTime.of(2030, 10, 26, 10, 0);
     private static final LocalDateTime FIM =
@@ -207,6 +220,74 @@ class ReservaApiPostgresE2ETest {
         assertNotNull(resposta.getBody());
         assertTrue(resposta.getBody().mensagem().contains("fim"));
         assertEquals(0L, contarReservasConflitantes());
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-101–113 / RF07 / RN01 - API rejeita intervalos inválidos em criação e alteração")
+    @MethodSource("intervalosInvalidosRF07")
+    void deveRetornarBadRequestRF07ComMensagemParaIntervalosInvalidosNaCriacaoEAlteracao(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            String mensagem
+    ) {
+        ResponseEntity<ApiExceptionHandler.ErroResponse> criacao =
+                restTemplate.postForEntity(
+                        "/api/reservas",
+                        solicitarReserva(inicio, fim, TipoSolicitante.PROFESSOR),
+                        ApiExceptionHandler.ErroResponse.class
+                );
+
+        assertEquals(HttpStatus.BAD_REQUEST, criacao.getStatusCode(), caso);
+        assertNotNull(criacao.getBody(), caso);
+        assertTrue(criacao.getBody().mensagem().contains(mensagem), caso);
+
+        ResponseEntity<ReservaResponse> criada = restTemplate.postForEntity(
+                "/api/reservas",
+                solicitarReserva(INICIO, FIM, TipoSolicitante.PROFESSOR),
+                ReservaResponse.class
+        );
+        assertEquals(HttpStatus.CREATED, criada.getStatusCode(), caso);
+        assertNotNull(criada.getBody(), caso);
+
+        ResponseEntity<ApiExceptionHandler.ErroResponse> alteracao =
+                restTemplate.exchange(
+                        "/api/reservas/{reservaId}/horario",
+                        HttpMethod.PUT,
+                        new HttpEntity<>(Map.of(
+                                "solicitanteId", solicitanteId,
+                                "inicio", inicio,
+                                "fim", fim
+                        )),
+                        ApiExceptionHandler.ErroResponse.class,
+                        criada.getBody().id()
+                );
+
+        assertEquals(HttpStatus.BAD_REQUEST, alteracao.getStatusCode(), caso);
+        assertNotNull(alteracao.getBody(), caso);
+        assertTrue(alteracao.getBody().mensagem().contains(mensagem), caso);
+    }
+
+    @Test
+    @DisplayName("CP-116 / RF07 / RN01 - API aceita intervalo adjacente")
+    void deveAceitarIntervalosAdjacentesPorHttp() {
+        ResponseEntity<ReservaResponse> primeira = restTemplate.postForEntity(
+                "/api/reservas",
+                solicitarReserva(INICIO, FIM, TipoSolicitante.PROFESSOR),
+                ReservaResponse.class
+        );
+        assertEquals(HttpStatus.CREATED, primeira.getStatusCode());
+
+        ResponseEntity<ReservaResponse> adjacente = restTemplate.postForEntity(
+                "/api/reservas",
+                solicitarReserva(FIM, FIM.plusHours(1), TipoSolicitante.PROFESSOR),
+                ReservaResponse.class
+        );
+
+        assertEquals(HttpStatus.CREATED, adjacente.getStatusCode());
+        assertNotNull(adjacente.getBody());
+        assertEquals(FIM, adjacente.getBody().inicio());
+        assertEquals(FIM.plusHours(1), adjacente.getBody().fim());
     }
 
     @Test
@@ -364,5 +445,67 @@ class ReservaApiPostgresE2ETest {
                 null
         );
         return reservaRepository.saveAndFlush(reserva);
+    }
+
+    private static Stream<Arguments> intervalosInvalidosRF07() {
+        LocalDateTime diaFuturo = AGORA.plusDays(1);
+        return Stream.of(
+                Arguments.of(
+                        "data passada", AGORA.minusDays(1),
+                        AGORA.minusDays(1).plusHours(1), "futuro"
+                ),
+                Arguments.of("exatamente agora", AGORA, AGORA.plusHours(1), "futuro"),
+                Arguments.of(
+                        "um minuto no futuro", AGORA.plusMinutes(1),
+                        AGORA.plusMinutes(1).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "início no minuto 15", diaFuturo.withMinute(15),
+                        diaFuturo.withMinute(15).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "início no minuto 45", diaFuturo.withMinute(45),
+                        diaFuturo.withMinute(45).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "fim no minuto 15", diaFuturo,
+                        diaFuturo.plusHours(1).withMinute(15), "30 minutos"
+                ),
+                Arguments.of(
+                        "fim no minuto 45", diaFuturo,
+                        diaFuturo.plusHours(1).withMinute(45), "30 minutos"
+                ),
+                Arguments.of(
+                        "segundos no início", diaFuturo.withSecond(1),
+                        diaFuturo.plusHours(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "segundos no fim", diaFuturo,
+                        diaFuturo.plusHours(1).withSecond(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "nanos no início", diaFuturo.withNano(1),
+                        diaFuturo.plusHours(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "nanos no fim", diaFuturo,
+                        diaFuturo.plusHours(1).withNano(1), "segundos e nanos"
+                ),
+                Arguments.of("fim igual ao início", diaFuturo, diaFuturo, "posterior"),
+                Arguments.of(
+                        "fim anterior ao início", diaFuturo.plusHours(1), diaFuturo,
+                        "posterior"
+                )
+        );
+    }
+
+    @TestConfiguration(proxyBeanMethods = false)
+    static class FixedClockConfiguration {
+
+        @Bean
+        @Primary
+        Clock rf07TestClock() {
+            return Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC);
+        }
     }
 }

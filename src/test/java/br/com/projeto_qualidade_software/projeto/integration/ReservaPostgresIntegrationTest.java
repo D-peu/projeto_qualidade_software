@@ -13,6 +13,7 @@ import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -64,9 +65,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReservaPostgresIntegrationTest {
 
     private static final LocalDateTime INICIO =
-            LocalDateTime.of(2026, 10, 26, 10, 0);
+            LocalDateTime.of(2040, 1, 2, 10, 0);
     private static final LocalDateTime FIM =
-            LocalDateTime.of(2026, 10, 26, 11, 0);
+            LocalDateTime.of(2040, 1, 2, 11, 0);
     private static final Set<StatusReserva> STATUS_QUE_OCUPAM_SALA = Set.of(
             StatusReserva.SOLICITADA,
             StatusReserva.APROVADA,
@@ -296,6 +297,7 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("CP-97 / RF08 / RN02 - bloqueia sobreposição do mesmo professor")
     void deveImpedirSobreposicaoDoMesmoProfessorEmSalasDiferentes() {
         Sala salaExistente = salvarSala();
         Sala outraSala = salvarSala();
@@ -318,8 +320,8 @@ class ReservaPostgresIntegrationTest {
                         outraSala.getId(),
                         solicitanteNovo.getId(),
                         TipoSolicitante.COORDENADOR,
-                        INICIO.plusMinutes(15),
-                        FIM.plusMinutes(15),
+                        INICIO.plusMinutes(30),
+                        FIM.plusMinutes(30),
                         List.of(professor.getId()),
                         List.of()
                 )
@@ -329,6 +331,7 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("CP-98 / RF08 / RN02 - bloqueia sobreposição do mesmo material")
     void deveImpedirSobreposicaoDoMesmoMaterialEmSalasDiferentes() {
         Sala salaExistente = salvarSala();
         Sala outraSala = salvarSala();
@@ -353,8 +356,8 @@ class ReservaPostgresIntegrationTest {
                         outraSala.getId(),
                         solicitanteNovo.getId(),
                         TipoSolicitante.COORDENADOR,
-                        INICIO.plusMinutes(15),
-                        FIM.plusMinutes(15),
+                        INICIO.plusMinutes(30),
+                        FIM.plusMinutes(30),
                         List.of(),
                         List.of(material.getId())
                 )

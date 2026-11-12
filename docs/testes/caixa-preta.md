@@ -74,7 +74,7 @@ Requisição: POST `/api/reservas` com S1, P1, PROFESSOR, no dia D, sem reservas
 | CP-02 | VL | `fim` ausente | 400 |
 | CP-03 | VL | `inicio` 11:00 e `fim` 10:00 (fim antes do início) | 400 |
 | CP-04 | VL | `inicio` 10:00 e `fim` 10:00 (iguais) | 400 |
-| CP-05 | VL | `inicio` 10:00 e `fim` 10:01 (um minuto de duração) | 201, status SOLICITADA |
+| CP-05 | VL | `inicio` 10:00 e `fim` 10:01 (um minuto de duração) | 400; horários devem usar incrementos de 30 minutos |
 | CP-06 | PE | `inicio` 08:00 e `fim` 18:00 (intervalo longo) | 201 |
 | CP-07 | PE | `inicio` D 23:00 e `fim` D+1 01:00 (atravessa a meia-noite) | 201 |
 | CP-08 | PE | `inicio` e `fim` ausentes | 400 |
@@ -251,7 +251,33 @@ Cada linha parte de uma reserva no estado de origem e aplica uma operação. O r
 
 Os estados EM_USO, CONCLUIDA e NAO_COMPARECEU **não são alcançáveis pela API** hoje (RF15 está parcial). Não há transições executáveis a partir deles.
 
-## 12. Tabela de decisão da aprovação (INV-04, RN05)
+## 12. Intervalos futuros em incrementos de 30 minutos (RF07, RN01)
+
+Os casos inválidos abaixo são aplicados tanto ao POST `/api/reservas` quanto ao PUT `/api/reservas/{id}/horario`. O início e término válidos usam uma data futura, segundos/nanos zerados e término posterior.
+
+| ID | Técnica | Entrada | Resultado esperado |
+|---|---|---|---|
+| CP-101 | VL | Início em data passada | 400; mensagem informa que o início deve estar no futuro |
+| CP-102 | VL | Início exatamente no momento atual | 400; mensagem informa que o início deve estar no futuro |
+| CP-103 | VL | Início um minuto no futuro | 400; mensagem informa incrementos de 30 minutos |
+| CP-104 | VL | Início no minuto 15 | 400; mensagem informa incrementos de 30 minutos |
+| CP-105 | VL | Início no minuto 45 | 400; mensagem informa incrementos de 30 minutos |
+| CP-106 | VL | Término no minuto 15 | 400; mensagem informa incrementos de 30 minutos |
+| CP-107 | VL | Término no minuto 45 | 400; mensagem informa incrementos de 30 minutos |
+| CP-108 | VL | Segundos do início diferentes de zero | 400; mensagem informa segundos/nanos zerados |
+| CP-109 | VL | Segundos do término diferentes de zero | 400; mensagem informa segundos/nanos zerados |
+| CP-110 | VL | Nanos do início diferentes de zero | 400; mensagem informa segundos/nanos zerados |
+| CP-111 | VL | Nanos do término diferentes de zero | 400; mensagem informa segundos/nanos zerados |
+| CP-112 | VL | Término igual ao início | 400; mensagem informa que o término deve ser posterior |
+| CP-113 | VL | Término anterior ao início | 400; mensagem informa que o término deve ser posterior |
+| CP-114 | PE | Intervalo futuro 10:00–11:00 | 201, status SOLICITADA |
+| CP-115 | PE | Intervalo futuro 10:30–12:00 | 201, status SOLICITADA |
+| CP-116 | VL | Novo intervalo começa exatamente quando termina a reserva anterior | 201; intervalos adjacentes não se sobrepõem |
+| CP-117 | VL | Relógio de São Paulo em 2026-11-12 23:50; solicitar 23:30–00:00 | 400; o início já passou no mesmo dia |
+| CP-118 | VL | Relógio de São Paulo em 2026-11-12 23:50; solicitar 2026-11-13 00:00–01:00 | 201; o início do dia seguinte é futuro |
+| CP-119 | VL | Relógio de São Paulo em 2026-11-12 01:00; solicitar 00:30–01:00 | 400; o início já passou no mesmo dia |
+
+## 13. Tabela de decisão da aprovação (INV-04, RN05)
 
 Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente (RF10):** a classificação de recurso restrito ainda não existe, então só as linhas de recurso não restrito podem ser executadas hoje.
 
@@ -262,7 +288,7 @@ Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente 
 | TD-03 | Responsável | Sim | Aprova (200) | Bloqueado: não há classificação de recurso restrito |
 | TD-04 | Administrador | Sim | Recusa, se a decisão for só o Responsável aprovar (RN05) | Bloqueado: não há classificação de recurso restrito |
 
-## 13. Casos que não podem ser executados hoje
+## 14. Casos que não podem ser executados hoje
 
 | Assunto | Motivo | Linha do inventário |
 |---|---|---|
@@ -275,11 +301,11 @@ Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente 
 
 Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não podem ser reportados como aprovados.
 
-## 14. Resumo
+## 15. Resumo
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-100) | 100 |
+| Casos de execução (CP-01 a CP-119) | 119 |
 | Transições de estado (TR-01 a TR-16) | 16 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
 | Executáveis só com estado preparado no banco | CP-38 e CP-45 |

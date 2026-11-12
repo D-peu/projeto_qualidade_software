@@ -22,17 +22,24 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -49,8 +56,9 @@ class ReservaServiceTest {
     private static final Long SOLICITANTE_ID = 2L;
     private static final Long RESERVA_ID = 3L;
     private static final Long APROVADOR_ID = 4L;
-    private static final LocalDateTime INICIO = LocalDateTime.of(2026, 10, 26, 10, 0);
-    private static final LocalDateTime FIM = LocalDateTime.of(2026, 10, 26, 11, 0);
+    private static final LocalDateTime AGORA = LocalDateTime.of(2040, 1, 1, 10, 0);
+    private static final LocalDateTime INICIO = LocalDateTime.of(2040, 1, 2, 10, 0);
+    private static final LocalDateTime FIM = LocalDateTime.of(2040, 1, 2, 11, 0);
 
     private ReservaRepository reservaRepository;
     private SalaRepository salaRepository;
@@ -74,7 +82,8 @@ class ReservaServiceTest {
                 solicitanteRepository,
                 responsavelRepository,
                 administradorRepository,
-                materialRepository
+                materialRepository,
+                Clock.fixed(AGORA.toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
         );
     }
 
@@ -171,7 +180,7 @@ class ReservaServiceTest {
 
     @Test
     void solicitarReservaComInicioEFimIguaisLancaIllegalArgumentException() {
-        LocalDateTime inicioEFim = LocalDateTime.of(2026, 10, 26, 10, 0);
+        LocalDateTime inicioEFim = INICIO;
 
         assertThrows(
                 IllegalArgumentException.class,
@@ -221,6 +230,46 @@ class ReservaServiceTest {
         );
 
         verificarNenhumRepositorioConsultado();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-101–113 / RF07 / RN01 - rejeita intervalos inválidos na criação")
+    @MethodSource("intervalosInvalidosRF07")
+    void solicitarReservaRejeitaIntervalosInvalidosRF07(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            String mensagem
+    ) {
+        prepararSolicitacaoSemConflito(inicio, fim);
+
+        IllegalArgumentException erro = assertThrows(
+                IllegalArgumentException.class,
+                () -> reservaService.solicitarReserva(
+                        SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+                )
+        );
+
+        assertTrue(erro.getMessage().contains(mensagem), caso);
+        verificarNenhumRepositorioConsultado();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-114–115 / RF07 / RN01 - aceita intervalos futuros válidos na criação")
+    @MethodSource("intervalosValidosRF07")
+    void solicitarReservaAceitaIntervalosFuturosEmMeiaHora(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim
+    ) {
+        prepararSolicitacaoSemConflito(inicio, fim);
+
+        Reserva resultado = reservaService.solicitarReserva(
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+        );
+
+        assertEquals(inicio, resultado.getInicio(), caso);
+        assertEquals(fim, resultado.getFim(), caso);
     }
 
     @Test
@@ -392,8 +441,8 @@ class ReservaServiceTest {
 
     @Test
     void alterarHorarioReservaComIntervaloValidoAtualizaEDevolveReservaSalva() {
-        LocalDateTime novoInicio = LocalDateTime.of(2026, 10, 26, 12, 0);
-        LocalDateTime novoFim = LocalDateTime.of(2026, 10, 26, 13, 0);
+        LocalDateTime novoInicio = LocalDateTime.of(2040, 1, 2, 12, 0);
+        LocalDateTime novoFim = LocalDateTime.of(2040, 1, 2, 13, 0);
         Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
 
         when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
@@ -423,6 +472,95 @@ class ReservaServiceTest {
         assertEquals(novoFim, resultado.getFim());
         assertSame(StatusReserva.SOLICITADA, resultado.getStatus());
         verify(reservaRepository).save(reserva);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-101–113 / RF07 / RN01 - rejeita intervalos inválidos na alteração")
+    @MethodSource("intervalosInvalidosRF07")
+    void alterarHorarioReservaRejeitaIntervalosInvalidosRF07(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            String mensagem
+    ) {
+        prepararAlteracaoSemConflito(inicio, fim);
+
+        IllegalArgumentException erro = assertThrows(
+                IllegalArgumentException.class,
+                () -> reservaService.alterarHorarioReserva(RESERVA_ID, SOLICITANTE_ID, inicio, fim)
+        );
+
+        assertTrue(erro.getMessage().contains(mensagem), caso);
+        verificarNenhumRepositorioConsultado();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-114–115 / RF07 / RN01 - aceita intervalos futuros válidos na alteração")
+    @MethodSource("intervalosValidosRF07")
+    void alterarHorarioReservaAceitaIntervalosFuturosEmMeiaHora(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim
+    ) {
+        Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
+        when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
+                .thenReturn(Optional.of(reserva));
+        when(salaRepository.buscarPorIdComBloqueio(SALA_ID))
+                .thenReturn(Optional.of(salaDisponivel()));
+        when(reservaRepository.contarConflitos(
+                eq(SALA_ID),
+                eq(EnumSet.of(
+                        StatusReserva.SOLICITADA,
+                        StatusReserva.APROVADA,
+                        StatusReserva.EM_USO
+                )),
+                eq(inicio),
+                eq(fim),
+                eq(RESERVA_ID)
+        )).thenReturn(0L);
+        doAnswer(invocation -> invocation.getArgument(0, Reserva.class))
+                .when(reservaRepository).save(any(Reserva.class));
+
+        Reserva resultado = reservaService.alterarHorarioReserva(
+                RESERVA_ID, SOLICITANTE_ID, inicio, fim
+        );
+
+        assertEquals(inicio, resultado.getInicio(), caso);
+        assertEquals(fim, resultado.getFim(), caso);
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-117–119 / RF07 / RN01 - valida limites do dia no fuso de São Paulo")
+    @MethodSource("intervalosLimiteFusoSaoPaulo")
+    void solicitarReservaValidaLimitesDoDiaNoFusoSaoPaulo(
+            String caso,
+            LocalDateTime agora,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            boolean valido
+    ) {
+        ZoneId saoPaulo = ZoneId.of("America/Sao_Paulo");
+        Clock clock = Clock.fixed(agora.atZone(saoPaulo).toInstant(), saoPaulo);
+        ReservaService service = criarReservaService(clock);
+
+        if (valido) {
+            prepararSolicitacaoSemConflito(inicio, fim);
+            Reserva reserva = service.solicitarReserva(
+                    SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+            );
+            assertEquals(inicio, reserva.getInicio(), caso);
+            assertEquals(fim, reserva.getFim(), caso);
+        } else {
+            IllegalArgumentException erro = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> service.solicitarReserva(
+                            SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+                    ),
+                    caso
+            );
+            assertTrue(erro.getMessage().contains("futuro"), caso);
+            verificarNenhumRepositorioConsultado();
+        }
     }
 
     @Test
@@ -624,8 +762,8 @@ class ReservaServiceTest {
 
     @Test
     void alterarHorarioReservaComConflitoLancaIllegalStateExceptionESemAlterarReserva() {
-        LocalDateTime novoInicio = LocalDateTime.of(2026, 10, 26, 12, 0);
-        LocalDateTime novoFim = LocalDateTime.of(2026, 10, 26, 13, 0);
+        LocalDateTime novoInicio = LocalDateTime.of(2040, 1, 2, 12, 0);
+        LocalDateTime novoFim = LocalDateTime.of(2040, 1, 2, 13, 0);
         Reserva reserva = reservaParaAlteracao(StatusReserva.SOLICITADA);
 
         when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
@@ -1196,6 +1334,151 @@ class ReservaServiceTest {
 
     private Sala salaDisponivel() {
         return new Sala(SALA_ID, 30, StatusSala.DISPONIVEL);
+    }
+
+    private void prepararSolicitacaoSemConflito(LocalDateTime inicio, LocalDateTime fim) {
+        Sala sala = salaDisponivel();
+        Solicitante solicitante = solicitanteProfessor();
+        when(salaRepository.buscarPorIdComBloqueio(SALA_ID)).thenReturn(Optional.of(sala));
+        when(solicitanteRepository.findById(SOLICITANTE_ID))
+                .thenReturn(Optional.of(solicitante));
+        when(solicitanteRepository.buscarProfessorPorIdComBloqueio(
+                SOLICITANTE_ID, TipoSolicitante.PROFESSOR
+        )).thenReturn(Optional.of(solicitante));
+        when(reservaRepository.contarConflitos(
+                eq(SALA_ID),
+                eq(EnumSet.of(
+                        StatusReserva.SOLICITADA,
+                        StatusReserva.APROVADA,
+                        StatusReserva.EM_USO
+                )),
+                eq(inicio),
+                eq(fim),
+                isNull()
+        )).thenReturn(0L);
+        doAnswer(invocation -> invocation.getArgument(0, Reserva.class))
+                .when(reservaRepository).save(any(Reserva.class));
+    }
+
+    private ReservaService criarReservaService(Clock clock) {
+        return new ReservaService(
+                reservaRepository,
+                salaRepository,
+                solicitanteRepository,
+                responsavelRepository,
+                administradorRepository,
+                materialRepository,
+                clock
+        );
+    }
+
+    private void prepararAlteracaoSemConflito(LocalDateTime inicio, LocalDateTime fim) {
+        when(reservaRepository.buscarPorIdComBloqueio(RESERVA_ID))
+                .thenReturn(Optional.of(reservaParaAlteracao(StatusReserva.SOLICITADA)));
+        when(salaRepository.buscarPorIdComBloqueio(SALA_ID))
+                .thenReturn(Optional.of(salaDisponivel()));
+        when(reservaRepository.contarConflitos(
+                eq(SALA_ID),
+                eq(EnumSet.of(
+                        StatusReserva.SOLICITADA,
+                        StatusReserva.APROVADA,
+                        StatusReserva.EM_USO
+                )),
+                eq(inicio),
+                eq(fim),
+                eq(RESERVA_ID)
+        )).thenReturn(0L);
+        doAnswer(invocation -> invocation.getArgument(0, Reserva.class))
+                .when(reservaRepository).save(any(Reserva.class));
+    }
+
+    private static Stream<Arguments> intervalosInvalidosRF07() {
+        LocalDateTime diaFuturo = AGORA.plusDays(1);
+        return Stream.of(
+                Arguments.of(
+                        "data passada", AGORA.minusDays(1), AGORA.minusDays(1).plusHours(1),
+                        "futuro"
+                ),
+                Arguments.of("exatamente agora", AGORA, AGORA.plusHours(1), "futuro"),
+                Arguments.of(
+                        "um minuto no futuro", AGORA.plusMinutes(1),
+                        AGORA.plusMinutes(1).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "início no minuto 15", diaFuturo.withMinute(15),
+                        diaFuturo.withMinute(15).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "início no minuto 45", diaFuturo.withMinute(45),
+                        diaFuturo.withMinute(45).plusHours(1), "30 minutos"
+                ),
+                Arguments.of(
+                        "fim no minuto 15", diaFuturo, diaFuturo.plusHours(1).withMinute(15),
+                        "30 minutos"
+                ),
+                Arguments.of(
+                        "fim no minuto 45", diaFuturo, diaFuturo.plusHours(1).withMinute(45),
+                        "30 minutos"
+                ),
+                Arguments.of(
+                        "segundos no início", diaFuturo.withSecond(1),
+                        diaFuturo.plusHours(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "segundos no fim", diaFuturo,
+                        diaFuturo.plusHours(1).withSecond(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "nanos no início", diaFuturo.withNano(1),
+                        diaFuturo.plusHours(1), "segundos e nanos"
+                ),
+                Arguments.of(
+                        "nanos no fim", diaFuturo,
+                        diaFuturo.plusHours(1).withNano(1), "segundos e nanos"
+                ),
+                Arguments.of("fim igual ao início", diaFuturo, diaFuturo, "posterior"),
+                Arguments.of(
+                        "fim anterior ao início", diaFuturo.plusHours(1), diaFuturo,
+                        "posterior"
+                )
+        );
+    }
+
+    private static Stream<Arguments> intervalosValidosRF07() {
+        LocalDateTime diaFuturo = AGORA.plusDays(1);
+        return Stream.of(
+                Arguments.of("10:00-11:00", diaFuturo, diaFuturo.plusHours(1)),
+                Arguments.of(
+                        "10:30-12:00", diaFuturo.plusMinutes(30),
+                        diaFuturo.plusHours(2)
+                )
+        );
+    }
+
+    private static Stream<Arguments> intervalosLimiteFusoSaoPaulo() {
+        return Stream.of(
+                Arguments.of(
+                        "23:50 rejeita 23:30 do mesmo dia",
+                        LocalDateTime.of(2026, 11, 12, 23, 50),
+                        LocalDateTime.of(2026, 11, 12, 23, 30),
+                        LocalDateTime.of(2026, 11, 13, 0, 0),
+                        false
+                ),
+                Arguments.of(
+                        "23:50 aceita 00:00 do dia seguinte",
+                        LocalDateTime.of(2026, 11, 12, 23, 50),
+                        LocalDateTime.of(2026, 11, 13, 0, 0),
+                        LocalDateTime.of(2026, 11, 13, 1, 0),
+                        true
+                ),
+                Arguments.of(
+                        "01:00 rejeita 00:30 do mesmo dia",
+                        LocalDateTime.of(2026, 11, 12, 1, 0),
+                        LocalDateTime.of(2026, 11, 12, 0, 30),
+                        LocalDateTime.of(2026, 11, 12, 1, 0),
+                        false
+                )
+        );
     }
 
     private Solicitante solicitanteProfessor() {
