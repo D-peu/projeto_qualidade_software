@@ -36,6 +36,10 @@ Perfil responsavel pela administracao dos cadastros e da disponibilidade dos rec
 | Consultar historico e relatorios | A validar |
 | Aprovar solicitacao de recurso restrito | Nao atribuido a este perfil pela especificacao atual |
 
+## Situacao atual da API
+
+O Administrador autentica-se com a própria conta e pode decidir reservas; a sessão, e não o ID enviado pelo cliente, define o perfil e o usuário. As rotas administrativas para cadastrar usuários/recursos, bloqueios ou períodos de manutenção ainda não existem; o serviço apenas impede solicitação quando o estado da sala não é `DISPONIVEL`.
+
 ## Qualidade relevante - ISO/IEC 25010
 
 - **Seguranca:** restringir funcoes administrativas a usuarios autorizados e registrar alteracoes.

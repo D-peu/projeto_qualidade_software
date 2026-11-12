@@ -205,38 +205,47 @@ test("room maintenance stays blocked while other room states follow active reser
   );
 });
 
-test("Spring Boot static entry point loads local assets without backend calls", () => {
+test("Spring Boot static entry point loads the frontend and reservation API client", () => {
   const html = readProjectFile("src/main/resources/static/index.html");
   const app = readProjectFile("src/main/resources/static/js/app.js");
   const styles = readProjectFile("src/main/resources/static/css/app.css");
 
   assert.match(html, /css\/app\.css/);
   assert.match(html, /js\/reservation-rules\.js/);
+  assert.match(html, /js\/reservation-api\.js/);
   assert.match(html, /js\/app\.js/);
   assert.match(html, /data-profile="solicitante"/);
   assert.match(html, /data-profile="responsavel"/);
   assert.match(html, /data-profile="administrador"/);
+  assert.match(app, /ReservationApi\.login/);
+  assert.match(app, /ReservationApi\.currentUser/);
+  assert.match(app, /ReservationApi\.logout/);
+  assert.doesNotMatch(app, /mockUsers|localStorage/);
   assert.match(app, /EM_MANUTENCAO/);
   assert.match(app, /approve-reservation/);
   assert.match(app, /reject-reservation/);
   assert.match(app, /edit-reservation/);
   assert.match(app, /cancel-reservation/);
-  assert.doesNotMatch(app, /\bfetch\s*\(|XMLHttpRequest/);
+  assert.match(app, /ReservationApi\.listRooms/);
+  assert.match(app, /ReservationApi\.createReservation/);
+  assert.match(app, /ReservationApi\.changeSchedule/);
+  assert.match(app, /ReservationApi\.cancelReservation/);
+  assert.match(app, /ReservationApi\.decideReservation/);
+  assert.doesNotMatch(app, /Marina Alves|RSV-204/);
   assert.match(styles, /@media \(max-width: 760px\)/);
 });
 
-test("login exposes only the work areas permitted for each mock role", () => {
-  const html = readProjectFile("src/main/resources/static/index.html");
-  const app = readProjectFile("src/main/resources/static/js/app.js");
+test("backend exposes the read endpoints consumed by the frontend", () => {
+  const salaController = readProjectFile(
+    "src/main/java/br/com/projeto_qualidade_software/projeto/api/SalaController.java",
+  );
+  const reservaController = readProjectFile(
+    "src/main/java/br/com/projeto_qualidade_software/projeto/api/ReservaController.java",
+  );
 
-  assert.match(html, /id="login-screen"/);
-  assert.match(html, /id="login-form"/);
-  assert.match(html, /id="logout-button"/);
-  assert.match(app, /email: "solicitante@senac\.local"/);
-  assert.match(app, /email: "responsavel@senac\.local"/);
-  assert.match(app, /email: "admin@senac\.local"/);
-  assert.match(app, /solicitante:\s*\["solicitante"\]/);
-  assert.match(app, /responsavel:\s*\["responsavel"\]/);
-  assert.match(app, /administrador:\s*\["administrador",\s*"responsavel"\]/);
-  assert.match(app, /allowedProfiles\[state\.currentUser\.role\]\.includes\(profile\)/);
+  assert.match(salaController, /@RequestMapping\("\/api\/salas"\)/);
+  assert.match(salaController, /@GetMapping/);
+  assert.match(salaController, /salaService\.listarSalas\(\)/);
+  assert.match(reservaController, /@RequestParam\("status"\) StatusReserva status/);
+  assert.match(reservaController, /listarReservas\(status\)/);
 });

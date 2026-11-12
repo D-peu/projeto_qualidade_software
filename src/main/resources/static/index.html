@@ -4,10 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#073a63">
-  <meta name="description" content="Painel demonstrativo para consulta e gestão de reservas de salas.">
+  <meta name="description" content="Portal para consultar salas e gerenciar reservas universitárias.">
   <title>Salas SENAC | Gestão de espaços</title>
   <link rel="stylesheet" href="css/app.css">
   <script src="js/reservation-rules.js" defer></script>
+  <script src="js/reservation-api.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
 <body>
@@ -43,7 +44,7 @@
         </label>
         <p class="form-error login-error" id="login-error" role="alert" aria-live="polite"></p>
         <button class="button button-primary login-submit" type="submit">Entrar <span aria-hidden="true">→</span></button>
-        <p class="login-footnote">Ambiente demonstrativo · acesso local</p>
+        <p class="login-footnote">Contas de demonstração e perfis estão descritos no README do projeto.</p>
       </form>
     </section>
   </main>
@@ -79,8 +80,8 @@
       <div class="sidebar-note">
         <span class="note-indicator" aria-hidden="true"></span>
         <div>
-          <strong>Ambiente demonstrativo</strong>
-          <span>Dados desta sessão não são persistidos.</span>
+          <strong>Dados do servidor</strong>
+          <span>Reservas são persistidas pela API.</span>
         </div>
       </div>
       <div class="sidebar-footer">
@@ -97,7 +98,8 @@
           <span id="active-profile-label">Solicitante</span>
         </div>
         <div class="topbar-meta">
-          <span class="demo-badge"><span aria-hidden="true"></span> Protótipo local</span>
+          <span class="demo-badge"><span aria-hidden="true"></span> API do servidor</span>
+          <span id="identity-summary" class="topbar-date"></span>
           <span class="topbar-date" id="today-label"></span>
           <span class="account-name" id="account-name"></span>
           <button class="button button-quiet button-small logout-button" id="logout-button" type="button">Sair</button>
@@ -105,6 +107,7 @@
       </header>
 
       <main class="page-content">
+        <div id="connection-status" aria-live="polite"></div>
         <div id="app-content"></div>
       </main>
     </div>
@@ -142,6 +145,16 @@
           <input id="end-time" name="endTime" type="time" required>
         </label>
       </div>
+      <label class="field resource-field" id="professor-allocation-field">
+        <span>Docentes envolvidos (opcional)</span>
+        <select id="reservation-professors" name="professorIds" multiple size="3" aria-describedby="professor-allocation-help"></select>
+        <small id="professor-allocation-help">Selecione os docentes envolvidos. Para conta de Professor, sua própria conta será associada automaticamente.</small>
+      </label>
+      <label class="field resource-field">
+        <span>Materiais necessários (opcional)</span>
+        <select id="reservation-materials" name="materialIds" multiple size="3" aria-describedby="material-allocation-help"></select>
+        <small id="material-allocation-help">Uma reserva ativa impede que o mesmo material seja reservado em outro horário sobreposto.</small>
+      </label>
       <p class="form-error" id="form-error" role="alert"></p>
       <div class="modal-actions">
         <button class="button button-quiet" type="button" data-close-dialog>Voltar</button>
@@ -149,5 +162,6 @@
       </div>
     </form>
   </dialog>
+
 </body>
 </html>

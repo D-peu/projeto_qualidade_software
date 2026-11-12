@@ -63,6 +63,10 @@ As metas de desempenho acima sao criterios iniciais escolhidos para este projeto
 | Acessibilidade e compatibilidade | Teclado, foco visivel, contraste legivel; Chrome e Firefox atuais em desktop e celular. |
 | Qualidade | ISO/IEC 25010:2023 como referencia; safety para recursos reais fica sujeita a inventario real. |
 
+## Situacao atual do backend
+
+O backend e o frontend estao integrados para consulta de salas e operacoes de reserva. Login por e-mail/senha usa sessao HTTP, e o backend restringe as operacoes ao perfil autenticado e à posse da reserva. As contas demonstrativas sao criadas localmente com senhas protegidas por hash; gestao de contas e recuperacao de senha ainda nao existem. A protecao concorrente usa bloqueio pessimista e testes com PostgreSQL para a mesma sala; a regra ainda nao cobre professores ou materiais. Recursos restritos, auditoria, ciclo completo de estados, manutencao por periodo, movimentacao de materiais e operacoes administrativas continuam pendentes. Consulte a [matriz de implementacao dos requisitos](prd/requisitos-funcionais.md#situacao-da-implementacao-atual) e a [documentacao da API](api-reservas.md).
+
 ## Criterios academicos de sucesso
 
 - Nenhuma reserva conflitante aceita, inclusive em solicitacoes simultaneas.

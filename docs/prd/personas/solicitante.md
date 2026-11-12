@@ -42,6 +42,10 @@ Professor ou coordenador universitario que consulta disponibilidade e cria, alte
 | Gerenciar cadastros, usuarios ou permissoes | Nao atribuido a este perfil |
 | Aprovar reservas ou alteracoes de data/horario | Nao permitido |
 
+## Situacao atual da API
+
+O solicitante entra com sua conta de Professor ou Coordenador. O backend usa a sessão para obter seu ID e tipo, e só permite consultar, alterar ou cancelar as próprias reservas; os IDs enviados pelo cliente não substituem a identidade da sessão. As contas iniciais são demonstrativas. As reservas verificam conflito de horário para sala, docentes associados e materiais associados. Professores são contas existentes do tipo PROFESSOR; materiais estão disponíveis em catálogo e podem ser associados à reserva.
+
 ## Qualidade relevante - ISO/IEC 25010
 
 - **Capacidade de interacao:** busca compreensivel, disponibilidade visivel e mensagens de erro acionaveis.
