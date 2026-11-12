@@ -38,8 +38,8 @@ test("authenticates with the server session and sends CSRF tokens on mutations",
     salaId: 1,
     solicitanteId: user.id,
     tipoSolicitante: user.tipoSolicitante,
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
@@ -57,8 +57,8 @@ test("authenticates with the server session and sends CSRF tokens on mutations",
     salaId: 1,
     solicitanteId: user.id,
     tipoSolicitante: user.tipoSolicitante,
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
@@ -86,6 +86,42 @@ test("reads rooms and filtered reservations from the backend", async () => {
   assert.throws(() => api.listReservations(""), /Informe o estado/);
 });
 
+test("sends room creation with capacity only and the authenticated CSRF token", async () => {
+  const calls = [];
+  const api = createApi(async (url, options) => {
+    calls.push({ url, options });
+    if (url === "/api/auth/csrf") {
+      return response(200, { csrfToken: "anonymous-token" });
+    }
+    if (url === "/api/auth/login") {
+      return response(200, {
+        id: 4,
+        nome: "Administrador",
+        email: "admin@teste.local",
+        perfil: "ADMINISTRADOR",
+        csrfToken: "admin-token",
+      });
+    }
+    return response(201, {
+      id: 402,
+      capacidade: 20,
+      statusSala: "DISPONIVEL",
+    });
+  });
+
+  await api.login("admin@teste.local", "Admin@123");
+  const sala = await api.createRoom({ capacidade: 20 });
+
+  assert.equal(sala.id, 402);
+  assert.deepEqual(calls.map(({ url, options }) => [url, options.method || "GET"]), [
+    ["/api/auth/csrf", "GET"],
+    ["/api/auth/login", "POST"],
+    ["/api/salas", "POST"],
+  ]);
+  assert.equal(calls[2].options.headers["X-CSRF-Token"], "admin-token");
+  assert.deepEqual(JSON.parse(calls[2].options.body), { capacidade: 20 });
+});
+
 test("sends reservation mutations using the existing backend contract", async () => {
   const calls = [];
   const api = createApi(async (url, options) => {
@@ -97,15 +133,15 @@ test("sends reservation mutations using the existing backend contract", async ()
     salaId: 3,
     solicitanteId: 9,
     tipoSolicitante: "PROFESSOR",
-    inicio: "2026-11-06T09:00",
-    fim: "2026-11-06T10:00",
+    inicio: "2040-11-06T09:00",
+    fim: "2040-11-06T10:00",
     professorIds: [9],
     materialIds: [31, 32],
   });
   await api.changeSchedule(8, {
     solicitanteId: 9,
-    inicio: "2026-11-06T10:00",
-    fim: "2026-11-06T11:00",
+    inicio: "2040-11-06T10:00",
+    fim: "2040-11-06T11:00",
   });
   await api.cancelReservation(8, 9);
   await api.decideReservation(8, 4, "RESPONSAVEL", "aprovacao");

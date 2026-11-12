@@ -1,0 +1,47 @@
+schema: 1
+story: '1.2'
+story_title: 'Integrar interface à API de reservas'
+gate: PASS
+status_reason: 'A revisão confirmou os ACs aplicáveis, com execução independente das suítes Maven/Node e smoke HTTP autenticado que verificou sessão, perfil, CSRF e logout. A correção no Dev Agent Record esclarece que a autenticação já existia na revisão analisada; a inspeção visual continua diferida porque não há navegador disponível.'
+reviewer: 'Quinn (Test Architect)'
+reviewed_revision: 'story-sha256:374aa70e6acfc8ac7e018afca2294f335cd9d1d4d0841c955893172e42d2e5df (source commit:f96838e58da13f67fba8ca84e2c851e17f1e790c)'
+updated: '2026-11-12T13:44:22Z'
+top_issues:
+  - id: 'TEST-001'
+    severity: low
+    finding: 'Inspeção visual em navegador não executada: Chromium, Chrome e Firefox não estão disponíveis neste ambiente; testes automatizados e smoke HTTP não equivalem a validação visual.'
+    suggested_action: 'Executar e registrar inspeção visual em navegador suportado quando o ambiente estiver disponível.'
+    suggested_owner: dev
+  - id: 'TEST-002'
+    severity: low
+    finding: 'Execução independente repetida: BUILD SUCCESS, 223 testes sem falhas/erros e JaCoCo acima dos limites, mas o log voltou a registrar encerramento forçado do fork Surefire após System.exit(0), exceções IllegalClassFormatException do JaCoCo 0.8.12 durante instrumentação em Java 25 e avisos de conexões fechadas no shutdown.'
+    suggested_action: 'Manter como monitor não bloqueador e investigar compatibilidade/configuração do JaCoCo/Surefire se os diagnósticos persistirem ou afetarem cobertura/testes.'
+    suggested_owner: dev
+waiver:
+  active: false
+quality_score: 93
+expires: '2026-11-26T13:44:22Z'
+evidence:
+  tests_reviewed: 241
+  risks_identified: 2
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6]
+    ac_gaps: []
+nfr_validation:
+  security:
+    status: PASS
+    notes: 'Smoke HTTP confirmou CSRF, sessão de Administrador, perfil retornado pelo servidor, leitura de salas e fila autorizada, logout 204, resposta 401 após logout e resposta 403 para fila de Solicitante. Não houve inspeção visual nem jornada E2E de navegador.'
+  performance:
+    status: CONCERNS
+    notes: 'Não foi feita medição de desempenho em navegador; não há meta específica nesta story.'
+  reliability:
+    status: CONCERNS
+    notes: 'Maven concluiu BUILD SUCCESS com 223 testes sem falhas/erros, JaCoCo acima dos limites, e suíte Node passou com 18 testes. Repetiram-se diagnósticos Surefire/JaCoCo e avisos de conexão no encerramento; sem falha observada, manter monitoramento.'
+  maintainability:
+    status: PASS
+    notes: 'A correção das Completion Notes e File List esclarece que o comportamento de sessão/perfil já existia em main; não é atribuído como implementação desta story.'
+recommendations:
+  immediate: []
+  future:
+    - action: 'Executar inspeção manual em navegador suportado e monitorar os diagnósticos Surefire/JaCoCo na próxima execução.'
+      refs: ['docs/testes/estrategia.md', 'pom.xml']

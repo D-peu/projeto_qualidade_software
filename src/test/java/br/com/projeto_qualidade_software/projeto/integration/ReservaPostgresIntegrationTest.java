@@ -1,18 +1,29 @@
 package br.com.projeto_qualidade_software.projeto.integration;
 
-import br.com.projeto_qualidade_software.projeto.entities.Reserva;
+import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
 import br.com.projeto_qualidade_software.projeto.entities.Material;
+import br.com.projeto_qualidade_software.projeto.entities.Reserva;
+import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
 import br.com.projeto_qualidade_software.projeto.entities.Solicitante;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
+import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
-import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.AuditoriaReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
+import br.com.projeto_qualidade_software.projeto.security.ContextoAutenticacao;
+import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
+import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
+import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -51,6 +62,7 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,13 +76,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReservaPostgresIntegrationTest {
 
     private static final LocalDateTime INICIO =
-            LocalDateTime.of(2026, 10, 26, 10, 0);
+            LocalDateTime.of(2040, 1, 2, 10, 0);
     private static final LocalDateTime FIM =
-            LocalDateTime.of(2026, 10, 26, 11, 0);
+            LocalDateTime.of(2040, 1, 2, 11, 0);
     private static final Set<StatusReserva> STATUS_QUE_OCUPAM_SALA = Set.of(
             StatusReserva.SOLICITADA,
             StatusReserva.APROVADA,
-            StatusReserva.EM_USO
+            StatusReserva.EM_USO,
+            StatusReserva.CONCLUIDA,
+            StatusReserva.NAO_COMPARECEU
     );
 
     @Container
@@ -87,6 +101,9 @@ class ReservaPostgresIntegrationTest {
     private ReservaRepository reservaRepository;
 
     @Autowired
+    private AuditoriaReservaRepository auditoriaReservaRepository;
+
+    @Autowired
     private SalaRepository salaRepository;
 
     @Autowired
@@ -94,6 +111,9 @@ class ReservaPostgresIntegrationTest {
 
     @Autowired
     private MaterialRepository materialRepository;
+
+    @Autowired
+    private ResponsavelRepository responsavelRepository;
 
     @Autowired
     private ReservaService reservaService;
@@ -106,6 +126,11 @@ class ReservaPostgresIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @AfterEach
+    void limparContextoAutenticacao() {
+        ContextoAutenticacao.limpar();
+    }
 
     @DynamicPropertySource
     static void configurarDatasource(DynamicPropertyRegistry registry) {
@@ -181,6 +206,42 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("CP-128 / RF09 / RN03 / INV-03 - Apenas uma aprovação concorrente confirma conflito")
+    void deveAprovarNoMaximoUmaReservaConflitanteEmOperacoesConcorrentes()
+            throws Exception {
+        FixtureAprovacaoConcorrente fixture = criarFixtureAprovacaoConcorrente();
+        try {
+            List<ResultadoAprovacaoConcorrente> resultados =
+                    aprovarReservasSimultaneamente(fixture);
+
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.reserva() != null)
+                    .count());
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.conflito() != null)
+                    .count());
+            assertEquals(
+                    1L,
+                    reservaRepository.contarConflitos(
+                            fixture.salaId(),
+                            Set.of(
+                                    StatusReserva.APROVADA,
+                                    StatusReserva.EM_USO,
+                                    StatusReserva.CONCLUIDA,
+                                    StatusReserva.NAO_COMPARECEU
+                            ),
+                            INICIO,
+                            FIM,
+                            null
+                    )
+            );
+        } finally {
+            limparFixtureAprovacaoConcorrente(fixture);
+        }
+    }
+
+    @Test
     void devePersistirReservaERecuperarSuasAssociacoes() {
         // Rastreabilidade: RF07, INV-01 e CB-47 (reserva válida persistida no PostgreSQL).
         Sala sala = salvarSala();
@@ -201,6 +262,135 @@ class ReservaPostgresIntegrationTest {
         assertEquals(sala.getId(), recuperada.getSala().getId());
         assertEquals(solicitante.getId(), recuperada.getSolicitante().getId());
         assertNotNull(recuperada.getSolicitadoEm());
+    }
+
+    @Test
+    @DisplayName("CP-138 / CB-71 / RF14-RF15 / RN07 - Criação persiste auditoria inicial")
+    void devePersistirAuditoriaDaCriacaoNaMesmaTransacao() {
+        Sala sala = salvarSala();
+        Solicitante solicitante = salvarSolicitante();
+
+        Reserva criada = reservaService.solicitarReserva(
+                sala.getId(),
+                solicitante.getId(),
+                solicitante.getTipoSolicitante(),
+                INICIO,
+                FIM
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        List<AuditoriaReserva> eventos =
+                auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(criada.getId());
+
+        assertEquals(1, eventos.size());
+        assertNull(eventos.getFirst().getEstadoAnterior());
+        assertEquals(StatusReserva.SOLICITADA, eventos.getFirst().getNovoEstado());
+        assertEquals(solicitante.getId(), eventos.getFirst().getUsuarioId());
+        assertEquals(PerfilUsuario.SOLICITANTE, eventos.getFirst().getPerfilUsuario());
+        assertNotNull(eventos.getFirst().getDataHora());
+    }
+
+    @Test
+    @DisplayName("CP-139 / CB-72 / RF02 / RF14-RF15 / RN07 - Conclusão salva estado e auditoria")
+    void devePersistirAuditoriaAoConcluirUtilizacao() {
+        Sala sala = salvarSala();
+        Solicitante solicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        String identificador = UUID.randomUUID().toString();
+        Responsavel responsavel = responsavelRepository.saveAndFlush(new Responsavel(
+                null,
+                "Responsável operacional",
+                identificador + "@teste.local",
+                "senha-de-teste",
+                null,
+                null
+        ));
+        Reserva reserva = salvarReserva(
+                sala, solicitante, INICIO, FIM, StatusReserva.EM_USO
+        );
+        reserva.setResponsavel(responsavel);
+        reservaRepository.saveAndFlush(reserva);
+        ContextoAutenticacao.definir(new UsuarioAutenticado(
+                responsavel.getId(),
+                responsavel.getName(),
+                responsavel.getEmail(),
+                PerfilUsuario.RESPONSAVEL,
+                null
+        ));
+
+        reservaService.concluirUtilizacao(reserva.getId());
+        entityManager.flush();
+        entityManager.clear();
+
+        Reserva atualizada = reservaRepository.findById(reserva.getId()).orElseThrow();
+        List<AuditoriaReserva> eventos =
+                auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(reserva.getId());
+
+        assertEquals(StatusReserva.CONCLUIDA, atualizada.getStatus());
+        assertEquals(1, eventos.size());
+        assertEquals(StatusReserva.EM_USO, eventos.getFirst().getEstadoAnterior());
+        assertEquals(StatusReserva.CONCLUIDA, eventos.getFirst().getNovoEstado());
+        assertEquals(responsavel.getId(), eventos.getFirst().getUsuarioId());
+        assertEquals(PerfilUsuario.RESPONSAVEL, eventos.getFirst().getPerfilUsuario());
+        assertNotNull(eventos.getFirst().getDataHora());
+    }
+
+    @Test
+    @DisplayName("CP-140 / CB-73 / RF08-RF15 / RN02-RN06 - Conclusão não libera intervalo")
+    void deveManterConflitoAteOFimOriginalAposConclusaoAntecipada() {
+        Sala sala = salvarSala();
+        Solicitante solicitanteExistente = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Solicitante novoSolicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        salvarReserva(
+                sala, solicitanteExistente, INICIO, FIM, StatusReserva.CONCLUIDA
+        );
+
+        IllegalStateException conflito = assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.solicitarReserva(
+                        sala.getId(),
+                        novoSolicitante.getId(),
+                        TipoSolicitante.COORDENADOR,
+                        INICIO.plusMinutes(30),
+                        FIM.plusMinutes(30)
+                )
+        );
+
+        assertTrue(conflito.getMessage().contains("sala"));
+    }
+
+    @Test
+    @DisplayName("CP-141 / CB-83 / RF02-RF15 - Solicitante não altera reserva persistida")
+    void deveRecusarTransicaoOperacionalDeSolicitanteSemGravarAuditoria() {
+        Sala sala = salvarSala();
+        Solicitante solicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Reserva reserva = salvarReserva(
+                sala, solicitante, INICIO, FIM, StatusReserva.EM_USO
+        );
+        ContextoAutenticacao.definir(new UsuarioAutenticado(
+                solicitante.getId(),
+                solicitante.getName(),
+                solicitante.getEmail(),
+                PerfilUsuario.SOLICITANTE,
+                solicitante.getTipoSolicitante()
+        ));
+
+        assertThrows(
+                AcessoNegadoException.class,
+                () -> reservaService.concluirUtilizacao(reserva.getId())
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertEquals(
+                StatusReserva.EM_USO,
+                reservaRepository.findById(reserva.getId()).orElseThrow().getStatus()
+        );
+        assertTrue(
+                auditoriaReservaRepository
+                        .findByReservaIdOrderByDataHoraAsc(reserva.getId())
+                        .isEmpty()
+        );
     }
 
     private List<ResultadoConcorrencia> solicitarRecursosSimultaneamente(
@@ -296,6 +486,7 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("CP-97 / RF08 / RN02 - bloqueia sobreposição do mesmo professor")
     void deveImpedirSobreposicaoDoMesmoProfessorEmSalasDiferentes() {
         Sala salaExistente = salvarSala();
         Sala outraSala = salvarSala();
@@ -318,8 +509,8 @@ class ReservaPostgresIntegrationTest {
                         outraSala.getId(),
                         solicitanteNovo.getId(),
                         TipoSolicitante.COORDENADOR,
-                        INICIO.plusMinutes(15),
-                        FIM.plusMinutes(15),
+                        INICIO.plusMinutes(30),
+                        FIM.plusMinutes(30),
                         List.of(professor.getId()),
                         List.of()
                 )
@@ -329,6 +520,7 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("CP-98 / RF08 / RN02 - bloqueia sobreposição do mesmo material")
     void deveImpedirSobreposicaoDoMesmoMaterialEmSalasDiferentes() {
         Sala salaExistente = salvarSala();
         Sala outraSala = salvarSala();
@@ -353,8 +545,8 @@ class ReservaPostgresIntegrationTest {
                         outraSala.getId(),
                         solicitanteNovo.getId(),
                         TipoSolicitante.COORDENADOR,
-                        INICIO.plusMinutes(15),
-                        FIM.plusMinutes(15),
+                        INICIO.plusMinutes(30),
+                        FIM.plusMinutes(30),
                         List.of(),
                         List.of(material.getId())
                 )
@@ -549,6 +741,12 @@ class ReservaPostgresIntegrationTest {
                     fixture.segundaSalaId()
             );
             jdbcTemplate.update(
+                    "delete from auditorias_reserva where reserva_id in "
+                            + "(select id from reservas where sala_id in (?, ?))",
+                    fixture.primeiraSalaId(),
+                    fixture.segundaSalaId()
+            );
+            jdbcTemplate.update(
                     "delete from reservas where sala_id in (?, ?)",
                     fixture.primeiraSalaId(),
                     fixture.segundaSalaId()
@@ -568,6 +766,111 @@ class ReservaPostgresIntegrationTest {
         });
     }
 
+    private FixtureAprovacaoConcorrente criarFixtureAprovacaoConcorrente() {
+        return novaTransacao().execute(status -> {
+            Sala sala = salvarSala();
+            Solicitante primeiroSolicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+            Solicitante segundoSolicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+            String identificador = UUID.randomUUID().toString();
+            Responsavel responsavel = responsavelRepository.saveAndFlush(new Responsavel(
+                    null,
+                    "Responsável de integração",
+                    identificador + "@teste.local",
+                    "senha-de-teste",
+                    null,
+                    null
+            ));
+            Reserva primeira = salvarReserva(
+                    sala, primeiroSolicitante, INICIO, FIM, StatusReserva.SOLICITADA
+            );
+            Reserva segunda = salvarReserva(
+                    sala, segundoSolicitante, INICIO, FIM, StatusReserva.SOLICITADA
+            );
+            return new FixtureAprovacaoConcorrente(
+                    sala.getId(),
+                    primeira.getId(),
+                    segunda.getId(),
+                    primeiroSolicitante.getId(),
+                    segundoSolicitante.getId(),
+                    responsavel.getId()
+            );
+        });
+    }
+
+    private void limparFixtureAprovacaoConcorrente(FixtureAprovacaoConcorrente fixture) {
+        novaTransacao().executeWithoutResult(status -> {
+            jdbcTemplate.update(
+                    "delete from auditorias_reserva where reserva_id in (?, ?)",
+                    fixture.primeiraReservaId(),
+                    fixture.segundaReservaId()
+            );
+            jdbcTemplate.update(
+                    "delete from reservas where id in (?, ?)",
+                    fixture.primeiraReservaId(),
+                    fixture.segundaReservaId()
+            );
+            jdbcTemplate.update(
+                    "delete from solicitantes where id in (?, ?)",
+                    fixture.primeiroSolicitanteId(),
+                    fixture.segundoSolicitanteId()
+            );
+            jdbcTemplate.update("delete from salas where id = ?", fixture.salaId());
+            jdbcTemplate.update(
+                    "delete from responsaveis where id = ?",
+                    fixture.responsavelId()
+            );
+        });
+    }
+
+    private List<ResultadoAprovacaoConcorrente> aprovarReservasSimultaneamente(
+            FixtureAprovacaoConcorrente fixture
+    ) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch prontas = new CountDownLatch(2);
+        CountDownLatch iniciar = new CountDownLatch(1);
+        List<Future<ResultadoAprovacaoConcorrente>> tarefas = new ArrayList<>(2);
+        try {
+            tarefas.add(executor.submit(() -> aprovarAposBarreira(
+                    fixture.primeiraReservaId(), fixture.responsavelId(), prontas, iniciar
+            )));
+            tarefas.add(executor.submit(() -> aprovarAposBarreira(
+                    fixture.segundaReservaId(), fixture.responsavelId(), prontas, iniciar
+            )));
+
+            assertTrue(prontas.await(10, TimeUnit.SECONDS),
+                    "As duas threads devem estar prontas antes da liberação.");
+            iniciar.countDown();
+            return List.of(
+                    tarefas.get(0).get(20, TimeUnit.SECONDS),
+                    tarefas.get(1).get(20, TimeUnit.SECONDS)
+            );
+        } finally {
+            iniciar.countDown();
+            encerrarExecutor(executor);
+        }
+    }
+
+    private ResultadoAprovacaoConcorrente aprovarAposBarreira(
+            Long reservaId,
+            Long responsavelId,
+            CountDownLatch prontas,
+            CountDownLatch iniciar
+    ) throws InterruptedException, TimeoutException {
+        prontas.countDown();
+        if (!iniciar.await(10, TimeUnit.SECONDS)) {
+            throw new TimeoutException("A liberação das aprovações concorrentes expirou.");
+        }
+
+        try {
+            Reserva reserva = reservaService.aprovarReserva(
+                    reservaId, responsavelId, TipoAprovadorReserva.RESPONSAVEL
+            );
+            return new ResultadoAprovacaoConcorrente(reserva, null);
+        } catch (IllegalStateException conflito) {
+            return new ResultadoAprovacaoConcorrente(null, conflito);
+        }
+    }
+
     private void limparFixtureConcorrencia(FixtureConcorrencia fixture) {
         novaTransacao().executeWithoutResult(status -> {
             jdbcTemplate.update(
@@ -577,6 +880,11 @@ class ReservaPostgresIntegrationTest {
             );
             jdbcTemplate.update(
                     "delete from reservas_materiais where reserva_id in "
+                            + "(select id from reservas where sala_id = ?)",
+                    fixture.salaId()
+            );
+            jdbcTemplate.update(
+                    "delete from auditorias_reserva where reserva_id in "
                             + "(select id from reservas where sala_id = ?)",
                     fixture.salaId()
             );
@@ -747,10 +1055,26 @@ class ReservaPostgresIntegrationTest {
     ) {
     }
 
+    private record FixtureAprovacaoConcorrente(
+            Long salaId,
+            Long primeiraReservaId,
+            Long segundaReservaId,
+            Long primeiroSolicitanteId,
+            Long segundoSolicitanteId,
+            Long responsavelId
+    ) {
+    }
+
     private record Intervalo(LocalDateTime inicio, LocalDateTime fim) {
     }
 
     private record ResultadoConcorrencia(
+            Reserva reserva,
+            IllegalStateException conflito
+    ) {
+    }
+
+    private record ResultadoAprovacaoConcorrente(
             Reserva reserva,
             IllegalStateException conflito
     ) {
@@ -761,10 +1085,10 @@ class ReservaPostgresIntegrationTest {
                 Arguments.of(StatusReserva.SOLICITADA, true),
                 Arguments.of(StatusReserva.APROVADA, true),
                 Arguments.of(StatusReserva.EM_USO, true),
-                Arguments.of(StatusReserva.CONCLUIDA, false),
+                Arguments.of(StatusReserva.CONCLUIDA, true),
+                Arguments.of(StatusReserva.NAO_COMPARECEU, true),
                 Arguments.of(StatusReserva.REJEITADA, false),
-                Arguments.of(StatusReserva.CANCELADA, false),
-                Arguments.of(StatusReserva.NAO_COMPARECEU, false)
+                Arguments.of(StatusReserva.CANCELADA, false)
         );
     }
 

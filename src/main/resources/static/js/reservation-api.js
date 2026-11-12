@@ -93,6 +93,11 @@
         }
       },
       listRooms: () => request("/api/salas"),
+      createRoom: (payload) =>
+        request("/api/salas", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
       listProfessors: () => request("/api/professores"),
       listMaterials: () => request("/api/materiais"),
       listReservations: (status) => {

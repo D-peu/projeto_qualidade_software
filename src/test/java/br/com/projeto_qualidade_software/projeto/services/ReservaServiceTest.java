@@ -281,6 +281,46 @@ class ReservaServiceTest {
         assertEquals(StatusReserva.SOLICITADA, outraSolicitada.getStatus());
     }
 
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-101–113 / RF07 / RN01 - rejeita intervalos inválidos na criação")
+    @MethodSource("intervalosInvalidosRF07")
+    void solicitarReservaRejeitaIntervalosInvalidosRF07(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            String mensagem
+    ) {
+        prepararSolicitacaoSemConflito(inicio, fim);
+
+        IllegalArgumentException erro = assertThrows(
+                IllegalArgumentException.class,
+                () -> reservaService.solicitarReserva(
+                        SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+                )
+        );
+
+        assertTrue(erro.getMessage().contains(mensagem), caso);
+        verificarNenhumRepositorioConsultado();
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @DisplayName("CP-114–115 / RF07 / RN01 - aceita intervalos futuros válidos na criação")
+    @MethodSource("intervalosValidosRF07")
+    void solicitarReservaAceitaIntervalosFuturosEmMeiaHora(
+            String caso,
+            LocalDateTime inicio,
+            LocalDateTime fim
+    ) {
+        prepararSolicitacaoSemConflito(inicio, fim);
+
+        Reserva resultado = reservaService.solicitarReserva(
+                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+        );
+
+        assertEquals(inicio, resultado.getInicio(), caso);
+        assertEquals(fim, resultado.getFim(), caso);
+    }
+
     @Test
     void blocksApprovalWhenRoomIsInMaintenance() {
         Sala sala = persistSala(StatusSala.EM_MANUTENCAO);
@@ -608,6 +648,18 @@ class ReservaServiceTest {
                     entityManager,
                     clock
             );
+        }
+    }
+
+    private enum TipoConflitoAprovacao {
+        SALA("sala"),
+        PROFESSOR("professor"),
+        MATERIAL("material");
+
+        private final String mensagem;
+
+        TipoConflitoAprovacao(String mensagem) {
+            this.mensagem = mensagem;
         }
     }
 }

@@ -4,7 +4,7 @@ Sistema de alocação de salas, professores e materiais sem conflitos de horári
 
 ## Estado atual
 
-A API de reservas está implementada para salas, com alocação opcional de docentes/materiais e login por sessão HTTP. Permanecem pendentes cadastro/gestão administrativa, bloqueios por período, auditoria, movimentação de materiais e relatórios. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
+A API de reservas está implementada para salas, com alocação opcional de docentes/materiais e login por sessão HTTP. O Administrador pode cadastrar salas adicionais; edição/desativação e cadastro/gestão de outros recursos, bloqueios por período, auditoria, movimentação de materiais e relatórios permanecem pendentes. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
 
 ## Pré-requisitos
 
@@ -32,6 +32,8 @@ Na primeira execução são criadas contas de demonstração, uma sala (30 lugar
 
 As senhas são armazenadas com hash e o login mantém sessão HTTP; estes usuários e senhas são somente para demonstração local. Para desligar a criação/atualização das contas demonstrativas, use `APP_SEED_ENABLED=false`.
 
+Entre como Administrador para cadastrar salas adicionais; cada sala recebe ID do banco e inicia como `DISPONIVEL`.
+
 Variáveis de ambiente opcionais: `DB_URL`, `DB_USER`, `DB_PASSWORD`.
 Para publicar atrás de HTTPS, configure `SESSION_COOKIE_SECURE=true`; mantenha `APP_AUTH_ENABLED=true`.
 
@@ -49,7 +51,7 @@ CSRF=$(jq -r .csrfToken usuario.json)
 SOLICITANTE_ID=$(jq -r .id usuario.json)
 curl -i -b cookies.txt -X POST http://localhost:8080/api/reservas \
   -H "Content-Type: application/json" -H "X-CSRF-Token: $CSRF" \
-  -d "{\"salaId\":1,\"solicitanteId\":$SOLICITANTE_ID,\"tipoSolicitante\":\"PROFESSOR\",\"inicio\":\"2026-11-02T10:00:00\",\"fim\":\"2026-11-02T11:00:00\"}"
+  -d "{\"salaId\":1,\"solicitanteId\":$SOLICITANTE_ID,\"tipoSolicitante\":\"PROFESSOR\",\"inicio\":\"2040-11-02T10:00:00\",\"fim\":\"2040-11-02T11:00:00\"}"
 ```
 
 Contrato completo em [`docs/openapi.yaml`](docs/openapi.yaml) e guia em [`docs/api-reservas.md`](docs/api-reservas.md).

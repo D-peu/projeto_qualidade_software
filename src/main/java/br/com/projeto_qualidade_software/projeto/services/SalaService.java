@@ -1,7 +1,9 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
+import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
+import br.com.projeto_qualidade_software.projeto.security.ContextoAutenticacao;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,5 +21,11 @@ public class SalaService {
     @Transactional(readOnly = true)
     public List<Sala> listarSalas() {
         return salaRepository.findAll();
+    }
+
+    @Transactional
+    public Sala criarSala(Integer capacidade) {
+        ContextoAutenticacao.exigirAdministrador();
+        return salaRepository.save(new Sala(null, capacidade, StatusSala.DISPONIVEL));
     }
 }

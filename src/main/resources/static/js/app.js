@@ -432,14 +432,34 @@
     content.innerHTML = `
       ${renderHeading(
         "CONTROLE DE RECURSOS",
-        "Consultar salas",
-        "Consulte os dados das salas cadastradas no servidor.",
+        "Salas cadastradas",
+        "Cadastre novas salas e consulte os dados persistidos no servidor.",
       )}
       ${renderStats()}
       <div class="info-banner">
         <span class="info-icon" aria-hidden="true">i</span>
-        <span>A API ainda não oferece operações administrativas para alterar cadastro, capacidade ou estado das salas. ${maintenanceCount} ${maintenanceCount === 1 ? "sala está" : "salas estão"} em manutenção.</span>
+        <span>Novas salas começam como DISPONIVEL e precisam de capacidade mínima de 20 pessoas. ${maintenanceCount} ${maintenanceCount === 1 ? "sala está" : "salas estão"} em manutenção.</span>
       </div>
+      <section class="panel" aria-labelledby="create-room-title">
+        <div class="panel-heading">
+          <div>
+            <h2 id="create-room-title">Cadastrar sala</h2>
+            <p>O identificador é gerado pelo servidor.</p>
+          </div>
+        </div>
+        <form id="create-room-form">
+          <div class="form-grid">
+            <label class="field" for="room-capacity">
+              <span>Capacidade (mínimo 20)</span>
+              <input id="room-capacity" name="capacidade" type="number" min="20" step="1" required inputmode="numeric">
+            </label>
+          </div>
+          <p class="form-error" id="create-room-error" role="alert" aria-live="polite"></p>
+          <div class="modal-actions">
+            <button class="button button-primary" type="submit">Cadastrar sala</button>
+          </div>
+        </form>
+      </section>
       <section aria-labelledby="admin-rooms-title">
         <div class="section-heading">
           <div>
@@ -723,6 +743,56 @@
     );
   };
 
+  const handleRoomCreation = async (event) => {
+    event.preventDefault();
+    if (state.currentUser?.perfil !== "ADMINISTRADOR") {
+      return;
+    }
+
+    const form = event.target;
+    const errorMessage = document.getElementById("create-room-error");
+    const submitButton = form.querySelector('button[type="submit"]');
+    const capacidade = Number(new FormData(form).get("capacidade"));
+    if (!Number.isInteger(capacidade) || capacidade < 20) {
+      errorMessage.textContent = "Informe uma capacidade inteira de pelo menos 20 pessoas.";
+      return;
+    }
+
+    submitButton.disabled = true;
+    errorMessage.textContent = "";
+    try {
+      const sala = await window.ReservationApi.createRoom({ capacidade });
+      if (
+        !sala ||
+        !Number.isSafeInteger(Number(sala.id)) ||
+        sala.capacidade !== capacidade ||
+        sala.statusSala !== ROOM_STATUS.AVAILABLE
+      ) {
+        await refreshData();
+        throw new window.ReservationApi.ApiError(
+          "A API retornou dados inválidos para a sala criada.",
+        );
+      }
+
+      showToast(`Sala ${sala.id} cadastrada com capacidade para ${sala.capacidade} pessoas.`);
+      await refreshData();
+    } catch (error) {
+      const message =
+        error instanceof window.ReservationApi.ApiError
+          ? error.message
+          : "Ocorreu um erro inesperado ao cadastrar a sala.";
+      const currentErrorMessage = document.getElementById("create-room-error");
+      if (currentErrorMessage) {
+        currentErrorMessage.textContent = message;
+      } else {
+        showToast(message, true);
+      }
+      console.error("Falha ao cadastrar sala.", error);
+    } finally {
+      submitButton.disabled = false;
+    }
+  };
+
   const openReservationDialog = (roomId, reservationId = null) => {
     const room = getRoom(roomId);
     const reservation = reservationId ? getReservation(reservationId) : null;
@@ -793,8 +863,13 @@
     const nextStart = `${startDate}T${startTime}`;
     const nextEnd = `${endDate}T${endTime}`;
 
-    if (!room || !window.ReservationRules.isValidInterval(nextStart, nextEnd)) {
-      formError.textContent = "Informe datas válidas e um término posterior ao início.";
+    if (!room) {
+      formError.textContent = "Não foi possível localizar esta sala.";
+      return;
+    }
+    if (!window.ReservationRules.isValidInterval(nextStart, nextEnd)) {
+      formError.textContent =
+        window.ReservationRules.getIntervalErrorMessage(nextStart, nextEnd);
       return;
     }
     if (!reservationId && !window.ReservationRules.canRequestRoom(room)) {
@@ -943,6 +1018,15 @@
       state.applicantView = "rooms";
       render();
       void refreshData();
+    }
+  });
+
+  content.addEventListener("submit", (event) => {
+    if (
+      event.target instanceof HTMLFormElement &&
+      event.target.id === "create-room-form"
+    ) {
+      void handleRoomCreation(event);
     }
   });
 

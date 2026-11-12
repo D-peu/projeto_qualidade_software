@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
   title: API de Reservas de Salas
-  version: 1.1.0
+  version: 1.2.0
   description: >-
-    API para autenticar usuarios por sessao HTTP e solicitar/acompanhamento de
-    reservas de salas. Requisicoes mutaveis exigem token CSRF. As regras e
-    limitacoes estao descritas em api-reservas.md.
+    API para autenticar usuarios por sessao HTTP, cadastrar salas como
+    Administrador e solicitar/acompanhamento de reservas de salas. Requisicoes
+    mutaveis exigem token CSRF. As regras e limitacoes estao descritas em
+    api-reservas.md.
 servers:
   - url: http://localhost:8080
     description: Ambiente local
@@ -13,7 +14,7 @@ tags:
   - name: Autenticacao
     description: Login, sessao e protecao CSRF
   - name: Salas
-    description: Consulta de salas cadastradas
+    description: Consulta e cadastro de salas (cadastro somente para Administrador)
   - name: Recursos
     description: Consulta de docentes e materiais disponíveis
   - name: Reservas
@@ -116,7 +117,7 @@ paths:
           description: Token CSRF inválido
   /api/salas:
     get:
-      tags: [Recursos]
+      tags: [Salas]
       summary: Listar salas
       operationId: listarSalas
       responses:
@@ -130,6 +131,39 @@ paths:
                   $ref: '#/components/schemas/Sala'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
+    post:
+      tags: [Salas]
+      summary: Cadastrar sala
+      description: Requer sessão autenticada de Administrador. ID e estado são definidos pelo servidor.
+      operationId: cadastrarSala
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarSalaRequest'
+      responses:
+        '201':
+          description: Sala cadastrada com identidade gerada e estado DISPONIVEL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sala'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
   /api/professores:
     get:
       tags: [Recursos]
@@ -459,6 +493,102 @@ paths:
           $ref: '#/components/responses/Conflito'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/iniciar:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Iniciar utilização de reserva aprovada
+      description: Permitido somente quando agora >= inicio e agora < fim. Administrador pode atuar em qualquer reserva; Responsável somente na reserva sob sua responsabilidade.
+      operationId: iniciarUtilizacao
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/concluir:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Concluir utilização em andamento
+      description: Permitido a qualquer momento após o início. A conclusão não libera antecipadamente o intervalo reservado.
+      operationId: concluirUtilizacao
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reserva concluída
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+  /api/reservas/{reservaId}/nao-comparecimento:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    post:
+      tags: [Reservas]
+      summary: Registrar não comparecimento
+      description: Permitido somente quando agora >= fim. O intervalo reservado permanece ocupado até o fim original.
+      operationId: registrarNaoComparecimento
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Não comparecimento registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Reserva'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+        '409':
+          $ref: '#/components/responses/Conflito'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
 components:
   securitySchemes:
     SessionCookie:
@@ -486,7 +616,7 @@ components:
           schema:
             $ref: '#/components/schemas/Erro'
     RequisicaoInvalida:
-      description: Dados ou parametro ausente/invalido, ou intervalo invalido
+      description: Corpo ou parâmetro ausente/inválido; inclui intervalo que viola RN01 (início futuro, horários em minutos 00/30 com segundos e nanos zerados, término posterior ao início)
       content:
         application/json:
           schema:
@@ -560,6 +690,14 @@ components:
         statusSala:
           type: string
           enum: [DISPONIVEL, RESERVADA, EM_MANUTENCAO]
+    CriarSalaRequest:
+      type: object
+      required: [capacidade]
+      properties:
+        capacidade:
+          type: integer
+          minimum: 20
+          description: Capacidade da sala em pessoas; mínimo de 20.
     Professor:
       type: object
       required: [id, nome]
@@ -596,9 +734,11 @@ components:
         inicio:
           type: string
           format: date-time
+          description: Data e hora local de America/Sao_Paulo no futuro, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         fim:
           type: string
           format: date-time
+          description: Data e hora posterior ao início, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         professorIds:
           type: array
           uniqueItems: true
@@ -625,9 +765,11 @@ components:
         inicio:
           type: string
           format: date-time
+          description: Data e hora local de America/Sao_Paulo no futuro, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         fim:
           type: string
           format: date-time
+          description: Data e hora posterior ao início, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
     AcaoReservaRequest:
       type: object
       required: [usuarioId]

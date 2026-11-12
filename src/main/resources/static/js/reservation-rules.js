@@ -27,18 +27,85 @@
   ]);
   const isRoomStatus = (status) => ROOM_STATUSES.includes(status);
 
-  const isValidInterval = (startDateTime, endDateTime) => {
-    if (!startDateTime || !endDateTime) {
-      return false;
+  const parseIntervalDateTime = (value) => {
+    const match =
+      /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d+))?)?$/.exec(
+        value || "",
+      );
+    if (!match) {
+      return null;
     }
-    const start = new Date(startDateTime);
-    const end = new Date(endDateTime);
-    return (
-      !Number.isNaN(start.getTime()) &&
-      !Number.isNaN(end.getTime()) &&
-      end > start
+    const seconds = Number(match[4] || 0);
+    const fraction = match[5] || "";
+    const date = new Date(
+      `${match[1]}T${match[2]}:${match[3]}:${String(seconds).padStart(2, "0")}Z`,
     );
+    if (
+      Number.isNaN(date.getTime()) ||
+      date.toISOString().slice(0, 19) !==
+        `${match[1]}T${match[2]}:${match[3]}:${String(seconds).padStart(2, "0")}`
+    ) {
+      return null;
+    }
+    return {
+      date,
+      minute: Number(match[3]),
+      seconds,
+      nanosZero: !/[1-9]/.test(fraction),
+    };
   };
+
+  const getIntervalErrorMessage = (
+    startDateTime,
+    endDateTime,
+    now = new Date(),
+  ) => {
+    const start = parseIntervalDateTime(startDateTime);
+    const end = parseIntervalDateTime(endDateTime);
+    if (!start || !end) {
+      return "Informe datas e horários válidos.";
+    }
+    const saoPauloParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(now)
+      .reduce((parts, part) => {
+        if (part.type !== "literal") {
+          parts[part.type] = part.value;
+        }
+        return parts;
+      }, {});
+    const saoPauloNow = new Date(
+      `${saoPauloParts.year}-${saoPauloParts.month}-${saoPauloParts.day}T${saoPauloParts.hour}:${saoPauloParts.minute}:00Z`,
+    );
+    if (start.date <= saoPauloNow) {
+      return "A data e hora de início devem estar no futuro.";
+    }
+    if (start.minute % 30 !== 0 || end.minute % 30 !== 0) {
+      return "O início e o término devem estar em incrementos de 30 minutos (minutos 00 ou 30).";
+    }
+    if (
+      start.seconds !== 0 ||
+      end.seconds !== 0 ||
+      !start.nanosZero ||
+      !end.nanosZero
+    ) {
+      return "Os segundos e nanos devem ser zerados.";
+    }
+    if (end.date <= start.date) {
+      return "O término deve ser posterior ao início.";
+    }
+    return "";
+  };
+
+  const isValidInterval = (startDateTime, endDateTime, now = new Date()) =>
+    getIntervalErrorMessage(startDateTime, endDateTime, now) === "";
 
   const canRequestRoom = (room) =>
     Boolean(room && room.statusSala === ROOM_STATUS.AVAILABLE);
@@ -129,6 +196,7 @@
     ACTIVE_RESERVATION_STATUSES,
     isRoomStatus,
     isValidInterval,
+    getIntervalErrorMessage,
     canRequestRoom,
     decideReservation,
     cancelReservation,

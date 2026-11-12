@@ -56,12 +56,12 @@ class ReservaControllerTest {
     private static final Long RESPONSAVEL_ID = 3L;
     private static final Long ADMINISTRADOR_ID = 4L;
     private static final Long RESERVA_ID = 5L;
-    private static final LocalDateTime INICIO = LocalDateTime.of(2026, 10, 27, 10, 0);
-    private static final LocalDateTime FIM = LocalDateTime.of(2026, 10, 27, 11, 0);
+    private static final LocalDateTime INICIO = LocalDateTime.of(2040, 1, 2, 10, 0);
+    private static final LocalDateTime FIM = LocalDateTime.of(2040, 1, 2, 11, 0);
     private static final LocalDateTime SOLICITADO_EM =
-            LocalDateTime.of(2026, 10, 26, 9, 0);
+            LocalDateTime.of(2040, 1, 1, 9, 0);
     private static final LocalDateTime APROVADO_EM =
-            LocalDateTime.of(2026, 10, 26, 9, 30);
+            LocalDateTime.of(2040, 1, 1, 9, 30);
 
     @Autowired
     private MockMvc mockMvc;
@@ -84,8 +84,8 @@ class ReservaControllerTest {
                                   "salaId": 1,
                                   "solicitanteId": 2,
                                   "tipoSolicitante": "PROFESSOR",
-                                  "inicio": "2026-10-27T10:00:00",
-                                  "fim": "2026-10-27T11:00:00"
+                                  "inicio": "2040-01-02T10:00:00",
+                                  "fim": "2040-01-02T11:00:00"
                                 }
                                 """))
                 .andExpect(status().isCreated())
@@ -115,7 +115,7 @@ class ReservaControllerTest {
                 .andExpect(jsonPath("$.responsavelId").value(RESPONSAVEL_ID))
                 .andExpect(jsonPath("$.administradorId").doesNotExist())
                 .andExpect(jsonPath("$.status").value("APROVADA"))
-                .andExpect(jsonPath("$.inicio").value("2026-10-27T10:00:00"));
+                .andExpect(jsonPath("$.inicio").value("2040-01-02T10:00:00"));
 
         verify(reservaService).buscarReserva(RESERVA_ID);
     }
@@ -178,14 +178,14 @@ class ReservaControllerTest {
                         .content("""
                                 {
                                   "solicitanteId": 2,
-                                  "inicio": "2026-10-27T10:00:00",
-                                  "fim": "2026-10-27T11:00:00"
+                                  "inicio": "2040-01-02T10:00:00",
+                                  "fim": "2040-01-02T11:00:00"
                                 }
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(RESERVA_ID))
-                .andExpect(jsonPath("$.inicio").value("2026-10-27T10:00:00"))
-                .andExpect(jsonPath("$.fim").value("2026-10-27T11:00:00"))
+                .andExpect(jsonPath("$.inicio").value("2040-01-02T10:00:00"))
+                .andExpect(jsonPath("$.fim").value("2040-01-02T11:00:00"))
                 .andExpect(jsonPath("$.status").value("SOLICITADA"));
 
         verify(reservaService).alterarHorarioReserva(RESERVA_ID, SOLICITANTE_ID, INICIO, FIM);
@@ -230,7 +230,7 @@ class ReservaControllerTest {
                 .andExpect(jsonPath("$.responsavelId").value(RESPONSAVEL_ID))
                 .andExpect(jsonPath("$.administradorId").doesNotExist())
                 .andExpect(jsonPath("$.status").value("APROVADA"))
-                .andExpect(jsonPath("$.aprovadoEm").value("2026-10-26T09:30:00"));
+                .andExpect(jsonPath("$.aprovadoEm").value("2040-01-01T09:30:00"));
 
         verify(reservaService).aprovarReserva(
                 RESERVA_ID, RESPONSAVEL_ID, TipoAprovadorReserva.RESPONSAVEL
@@ -256,11 +256,52 @@ class ReservaControllerTest {
                 .andExpect(jsonPath("$.administradorId").value(ADMINISTRADOR_ID))
                 .andExpect(jsonPath("$.responsavelId").doesNotExist())
                 .andExpect(jsonPath("$.status").value("REJEITADA"))
-                .andExpect(jsonPath("$.aprovadoEm").value("2026-10-26T09:30:00"));
+                .andExpect(jsonPath("$.aprovadoEm").value("2040-01-01T09:30:00"));
 
         verify(reservaService).rejeitarReserva(
                 RESERVA_ID, ADMINISTRADOR_ID, TipoAprovadorReserva.ADMINISTRADOR
         );
+    }
+
+    @Test
+    void iniciarUtilizacaoRetornaReservaEmUsoSemIdentidadeNoCorpo() throws Exception {
+        when(reservaService.iniciarUtilizacao(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.EM_USO));
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/iniciar", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("EM_USO"));
+
+        verify(reservaService).iniciarUtilizacao(RESERVA_ID);
+    }
+
+    @Test
+    void concluirUtilizacaoRetornaReservaConcluidaSemIdentidadeNoCorpo() throws Exception {
+        when(reservaService.concluirUtilizacao(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.CONCLUIDA));
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/concluir", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("CONCLUIDA"));
+
+        verify(reservaService).concluirUtilizacao(RESERVA_ID);
+    }
+
+    @Test
+    void registrarNaoComparecimentoRetornaEstadoCorrespondente() throws Exception {
+        when(reservaService.registrarNaoComparecimento(RESERVA_ID))
+                .thenReturn(reserva(StatusReserva.NAO_COMPARECEU));
+
+        mockMvc.perform(post(
+                        "/api/reservas/{reservaId}/nao-comparecimento", RESERVA_ID
+                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(RESERVA_ID))
+                .andExpect(jsonPath("$.status").value("NAO_COMPARECEU"));
+
+        verify(reservaService).registrarNaoComparecimento(RESERVA_ID);
     }
 
     @Test
@@ -292,8 +333,8 @@ class ReservaControllerTest {
                                   "salaId": 1,
                                   "solicitanteId": 2,
                                   "tipoSolicitante": "PROFESSOR",
-                                  "inicio": "2026-10-27T10:00:00",
-                                  "fim": "2026-10-27T11:00:00"
+                                  "inicio": "2040-01-02T10:00:00",
+                                  "fim": "2040-01-02T11:00:00"
                                 }
                                 """))
                 .andExpect(status().isForbidden())
@@ -321,8 +362,8 @@ class ReservaControllerTest {
                                   "salaId": 1,
                                   "solicitanteId": 2,
                                   "tipoSolicitante": "PROFESSOR",
-                                  "inicio": "2026-10-27T10:00:00",
-                                  "fim": "2026-10-27T10:00:00"
+                                  "inicio": "2040-01-02T10:00:00",
+                                  "fim": "2040-01-02T10:00:00"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
@@ -375,24 +416,24 @@ class ReservaControllerTest {
                         {
                           "solicitanteId": 2,
                           "tipoSolicitante": "PROFESSOR",
-                          "inicio": "2026-10-27T10:00:00",
-                          "fim": "2026-10-27T11:00:00"
+                          "inicio": "2040-01-02T10:00:00",
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "salaId"),
                 Arguments.of("""
                         {
                           "salaId": 1,
                           "tipoSolicitante": "PROFESSOR",
-                          "inicio": "2026-10-27T10:00:00",
-                          "fim": "2026-10-27T11:00:00"
+                          "inicio": "2040-01-02T10:00:00",
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "solicitanteId"),
                 Arguments.of("""
                         {
                           "salaId": 1,
                           "solicitanteId": 2,
-                          "inicio": "2026-10-27T10:00:00",
-                          "fim": "2026-10-27T11:00:00"
+                          "inicio": "2040-01-02T10:00:00",
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "tipoSolicitante"),
                 Arguments.of("""
@@ -400,7 +441,7 @@ class ReservaControllerTest {
                           "salaId": 1,
                           "solicitanteId": 2,
                           "tipoSolicitante": "PROFESSOR",
-                          "fim": "2026-10-27T11:00:00"
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "inicio"),
                 Arguments.of("""
@@ -408,7 +449,7 @@ class ReservaControllerTest {
                           "salaId": 1,
                           "solicitanteId": 2,
                           "tipoSolicitante": "PROFESSOR",
-                          "inicio": "2026-10-27T10:00:00"
+                          "inicio": "2040-01-02T10:00:00"
                         }
                         """, "fim")
         );
@@ -434,8 +475,8 @@ class ReservaControllerTest {
                   "salaId": %s,
                   "solicitanteId": %s,
                   "tipoSolicitante": "PROFESSOR",
-                  "inicio": "2026-10-27T10:00:00",
-                  "fim": "2026-10-27T11:00:00"
+                  "inicio": "2040-01-02T10:00:00",
+                  "fim": "2040-01-02T11:00:00"
                 }
                 """.formatted(salaId, solicitanteId);
 
@@ -463,20 +504,20 @@ class ReservaControllerTest {
         return Stream.of(
                 Arguments.of("""
                         {
-                          "inicio": "2026-10-27T10:00:00",
-                          "fim": "2026-10-27T11:00:00"
+                          "inicio": "2040-01-02T10:00:00",
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "solicitanteId"),
                 Arguments.of("""
                         {
                           "solicitanteId": 2,
-                          "fim": "2026-10-27T11:00:00"
+                          "fim": "2040-01-02T11:00:00"
                         }
                         """, "inicio"),
                 Arguments.of("""
                         {
                           "solicitanteId": 2,
-                          "inicio": "2026-10-27T10:00:00"
+                          "inicio": "2040-01-02T10:00:00"
                         }
                         """, "fim")
         );
@@ -489,8 +530,8 @@ class ReservaControllerTest {
         String body = """
                 {
                   "solicitanteId": %s,
-                  "inicio": "2026-10-27T10:00:00",
-                  "fim": "2026-10-27T11:00:00"
+                  "inicio": "2040-01-02T10:00:00",
+                  "fim": "2040-01-02T11:00:00"
                 }
                 """.formatted(value);
 

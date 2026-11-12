@@ -97,19 +97,118 @@ test("cancellation is limited to requested or approved reservations", () => {
 });
 
 test("reservation intervals require a valid end after the start", () => {
+  const now = new Date("2040-01-01T13:00:00Z");
   assert.equal(
-    rules.isValidInterval("2026-10-16T09:00", "2026-10-16T10:00"),
+    rules.isValidInterval("2040-01-02T09:00", "2040-01-02T10:00", now),
     true,
   );
   assert.equal(
-    rules.isValidInterval("2026-10-16T10:00", "2026-10-16T10:00"),
+    rules.isValidInterval("2040-01-02T10:00", "2040-01-02T10:00", now),
     false,
   );
   assert.equal(
-    rules.isValidInterval("2026-10-16T11:00", "2026-10-16T10:00"),
+    rules.isValidInterval("2040-01-02T11:00", "2040-01-02T10:00", now),
     false,
   );
-  assert.equal(rules.isValidInterval("", "2026-10-16T10:00"), false);
+  assert.equal(rules.isValidInterval("", "2040-01-02T10:00", now), false);
+});
+
+test("CP-101–116 / RF07 / RN01 accepts future half-hour intervals and explains invalid input", () => {
+  const now = new Date("2040-01-01T13:00:00Z");
+  const invalidIntervals = [
+    ["data passada", "2039-12-31T10:00", "2039-12-31T11:00", "futuro"],
+    ["exatamente agora", "2040-01-01T10:00", "2040-01-01T11:00", "futuro"],
+    [
+      "um minuto no futuro",
+      "2040-01-01T10:01",
+      "2040-01-01T11:01",
+      "30 minutos",
+    ],
+    ["início no minuto 15", "2040-01-02T10:15", "2040-01-02T11:15", "30 minutos"],
+    ["início no minuto 45", "2040-01-02T10:45", "2040-01-02T11:45", "30 minutos"],
+    ["fim no minuto 15", "2040-01-02T10:00", "2040-01-02T11:15", "30 minutos"],
+    ["fim no minuto 45", "2040-01-02T10:00", "2040-01-02T11:45", "30 minutos"],
+    [
+      "segundos diferentes de zero",
+      "2040-01-02T10:00:01",
+      "2040-01-02T11:00",
+      "segundos e nanos",
+    ],
+    [
+      "nanos diferentes de zero",
+      "2040-01-02T10:00:00.000000001",
+      "2040-01-02T11:00",
+      "segundos e nanos",
+    ],
+    [
+      "fim igual ao início",
+      "2040-01-02T10:00",
+      "2040-01-02T10:00",
+      "posterior",
+    ],
+    [
+      "fim anterior ao início",
+      "2040-01-02T11:00",
+      "2040-01-02T10:00",
+      "posterior",
+    ],
+  ];
+
+  for (const [caso, inicio, fim, mensagem] of invalidIntervals) {
+    assert.equal(rules.isValidInterval(inicio, fim, now), false, caso);
+    assert.match(rules.getIntervalErrorMessage(inicio, fim, now), new RegExp(mensagem));
+  }
+
+  assert.equal(
+    rules.isValidInterval("2040-01-02T10:00", "2040-01-02T11:00", now),
+    true,
+  );
+  assert.equal(
+    rules.isValidInterval("2040-01-02T10:30", "2040-01-02T12:00", now),
+    true,
+  );
+});
+
+test("CP-117–119 / RF07 / RN01 compares reservation times in São Paulo regardless of browser timezone", () => {
+  const originalTimezone = process.env.TZ;
+  process.env.TZ = "UTC";
+  try {
+    const nowAt2350SaoPaulo = new Date("2026-11-13T02:50:00Z");
+    assert.equal(
+      rules.isValidInterval(
+        "2026-11-12T23:30",
+        "2026-11-13T00:00",
+        nowAt2350SaoPaulo,
+      ),
+      false,
+      "23:30 do mesmo dia já passou em São Paulo",
+    );
+    assert.equal(
+      rules.isValidInterval(
+        "2026-11-13T00:00",
+        "2026-11-13T01:00",
+        nowAt2350SaoPaulo,
+      ),
+      true,
+      "00:00 do dia seguinte ainda está no futuro em São Paulo",
+    );
+
+    assert.equal(
+      rules.isValidInterval(
+        "2026-11-12T00:30",
+        "2026-11-12T01:30",
+        new Date("2026-11-12T04:00:00Z"),
+      ),
+      false,
+      "00:30 já passou às 01:00 em São Paulo",
+    );
+  } finally {
+    if (originalTimezone === undefined) {
+      delete process.env.TZ;
+    } else {
+      process.env.TZ = originalTimezone;
+    }
+  }
 });
 
 test("schedule conflicts reject overlap but allow adjacent reservations", () => {
@@ -117,15 +216,15 @@ test("schedule conflicts reject overlap but allow adjacent reservations", () => 
     {
       id: "RSV-1",
       salaId: 101,
-      inicio: "2026-10-16T09:00",
-      fim: "2026-10-16T10:00",
+      inicio: "2040-10-16T09:00",
+      fim: "2040-10-16T10:00",
       status: rules.RESERVATION_STATUS.APPROVED,
     },
     {
       id: "RSV-2",
       salaId: 101,
-      inicio: "2026-10-16T12:00",
-      fim: "2026-10-16T13:00",
+      inicio: "2040-10-16T12:00",
+      fim: "2040-10-16T13:00",
       status: rules.RESERVATION_STATUS.CANCELLED,
     },
   ];
@@ -134,8 +233,8 @@ test("schedule conflicts reject overlap but allow adjacent reservations", () => 
     rules.hasScheduleConflict(
       reservations,
       101,
-      "2026-10-16T09:30",
-      "2026-10-16T10:30",
+      "2040-10-16T09:30",
+      "2040-10-16T10:30",
     ),
     true,
   );
@@ -143,8 +242,8 @@ test("schedule conflicts reject overlap but allow adjacent reservations", () => 
     rules.hasScheduleConflict(
       reservations,
       101,
-      "2026-10-16T10:00",
-      "2026-10-16T11:00",
+      "2040-10-16T10:00",
+      "2040-10-16T11:00",
     ),
     false,
   );
@@ -152,8 +251,8 @@ test("schedule conflicts reject overlap but allow adjacent reservations", () => 
     rules.hasScheduleConflict(
       reservations,
       204,
-      "2026-10-16T09:30",
-      "2026-10-16T10:30",
+      "2040-10-16T09:30",
+      "2040-10-16T10:30",
     ),
     false,
   );
@@ -161,8 +260,8 @@ test("schedule conflicts reject overlap but allow adjacent reservations", () => 
     rules.hasScheduleConflict(
       reservations,
       101,
-      "2026-10-16T09:30",
-      "2026-10-16T10:30",
+      "2040-10-16T09:30",
+      "2040-10-16T10:30",
       "RSV-1",
     ),
     false,
@@ -227,6 +326,9 @@ test("Spring Boot static entry point loads the frontend and reservation API clie
   assert.match(app, /edit-reservation/);
   assert.match(app, /cancel-reservation/);
   assert.match(app, /ReservationApi\.listRooms/);
+  assert.match(app, /id="create-room-form"/);
+  assert.match(app, /ReservationApi\.createRoom/);
+  assert.match(app, /type="number" min="20" step="1" required/);
   assert.match(app, /ReservationApi\.createReservation/);
   assert.match(app, /ReservationApi\.changeSchedule/);
   assert.match(app, /ReservationApi\.cancelReservation/);
