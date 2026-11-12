@@ -16,7 +16,7 @@ Esta API implementa apenas parte das regras previstas no PRD. O comportamento ob
 
 | Regra | Situacao atual |
 |---|---|
-| RN01 - Intervalo | Implementada: o termino precisa ser posterior ao inicio. |
+| RN01 - Intervalo | Implementada: o início deve estar no futuro segundo o relógio de `America/Sao_Paulo`; início e término devem estar nos minutos 00 ou 30, com segundos e nanos zerados; o término deve ser posterior ao início. |
 | RN02 - Conflito de horario | Implementada para sala, docentes associados e materiais associados. Intervalos adjacentes sao aceitos. |
 | RN03 - Concorrencia | Implementada para sala, docente e material: o serviço bloqueia os registros dos recursos em ordem determinística antes de verificar conflitos; testes PostgreSQL cobrem solicitações concorrentes em salas distintas que disputam o mesmo docente/material. |
 | RN04 - Bloqueio/manutencao | Parcial: a sala so e aceita quando `DISPONIVEL`; nao existem bloqueios por periodo nem gestao administrativa desses estados. |
@@ -71,7 +71,7 @@ O frontend autentica no servidor, restaura a sessão ao recarregar a página e m
 
 ## Exemplos
 
-Datas devem ser enviadas em ISO 8601, por exemplo `2026-10-20T09:00:00`.
+Datas devem ser enviadas em ISO 8601 como horário local de São Paulo, sem offset; o servidor compara o início com seu relógio `America/Sao_Paulo`. O início deve ser posterior ao momento atual nessa zona; ambos os horários devem usar minuto `00` ou `30`, com segundos e nanos zerados, e o término deve ser posterior ao início. Por exemplo, para uma execução antes de novembro de 2040: `2040-11-02T10:00:00`.
 
 ### Solicitar
 
@@ -85,8 +85,8 @@ Content-Type: application/json
   "tipoSolicitante": "PROFESSOR",
   "professorIds": [],
   "materialIds": [1],
-  "inicio": "2026-10-20T09:00:00",
-  "fim": "2026-10-20T10:30:00"
+  "inicio": "2040-11-02T09:00:00",
+  "fim": "2040-11-02T10:30:00"
 }
 ```
 
@@ -100,8 +100,8 @@ Content-Type: application/json
 
 {
   "solicitanteId": 12,
-  "inicio": "2026-10-20T10:00:00",
-  "fim": "2026-10-20T11:30:00"
+  "inicio": "2040-11-02T10:00:00",
+  "fim": "2040-11-02T11:30:00"
 }
 ```
 
@@ -135,13 +135,13 @@ Os erros retornam JSON no formato `{"mensagem":"..."}`.
 
 | Status | Significado |
 |---|---|
-| `400 Bad Request` | Corpo invalido, campos obrigatorios ausentes ou intervalo incorreto |
+| `400 Bad Request` | Corpo inválido, campos obrigatórios ausentes ou intervalo que viola RN01; a mensagem identifica data/hora não futura, incremento de 30 minutos, segundos/nanos ou término não posterior |
 | `404 Not Found` | Reserva, sala, solicitante, responsavel ou administrador inexistente |
 | `401 Unauthorized` | Credenciais inválidas ou sessão ausente/expirada |
 | `403 Forbidden` | Token CSRF inválido, perfil sem permissão, ou identidade da sessão não corresponde à operação |
 | `409 Conflict` | Sobreposicao de horario ou estado que nao permite a operacao |
 
-O intervalo exige `fim` posterior a `inicio`. Reservas solicitadas, aprovadas ou em uso ocupam a sala; salas indisponiveis nao aceitam novas solicitacoes.
+O intervalo exige início estritamente futuro em `America/Sao_Paulo`, minutos `00` ou `30` em ambos os horários, segundos/nanos iguais a zero e `fim` posterior a `inicio`. A mesma validação é aplicada ao solicitar e ao alterar horário. Reservas solicitadas, aprovadas ou em uso ocupam a sala; salas indisponiveis nao aceitam novas solicitacoes.
 
 ## Seguranca e limites atuais
 

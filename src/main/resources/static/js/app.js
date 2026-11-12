@@ -793,8 +793,13 @@
     const nextStart = `${startDate}T${startTime}`;
     const nextEnd = `${endDate}T${endTime}`;
 
-    if (!room || !window.ReservationRules.isValidInterval(nextStart, nextEnd)) {
-      formError.textContent = "Informe datas válidas e um término posterior ao início.";
+    if (!room) {
+      formError.textContent = "Não foi possível localizar esta sala.";
+      return;
+    }
+    if (!window.ReservationRules.isValidInterval(nextStart, nextEnd)) {
+      formError.textContent =
+        window.ReservationRules.getIntervalErrorMessage(nextStart, nextEnd);
       return;
     }
     if (!reservationId && !window.ReservationRules.canRequestRoom(room)) {

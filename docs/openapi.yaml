@@ -486,7 +486,7 @@ components:
           schema:
             $ref: '#/components/schemas/Erro'
     RequisicaoInvalida:
-      description: Dados ou parametro ausente/invalido, ou intervalo invalido
+      description: Corpo ou parâmetro ausente/inválido; inclui intervalo que viola RN01 (início futuro, horários em minutos 00/30 com segundos e nanos zerados, término posterior ao início)
       content:
         application/json:
           schema:
@@ -596,9 +596,11 @@ components:
         inicio:
           type: string
           format: date-time
+          description: Data e hora local de America/Sao_Paulo no futuro, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         fim:
           type: string
           format: date-time
+          description: Data e hora posterior ao início, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         professorIds:
           type: array
           uniqueItems: true
@@ -625,9 +627,11 @@ components:
         inicio:
           type: string
           format: date-time
+          description: Data e hora local de America/Sao_Paulo no futuro, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
         fim:
           type: string
           format: date-time
+          description: Data e hora posterior ao início, em minuto 00 ou 30, com segundos e nanos zerados; enviar sem offset.
     AcaoReservaRequest:
       type: object
       required: [usuarioId]

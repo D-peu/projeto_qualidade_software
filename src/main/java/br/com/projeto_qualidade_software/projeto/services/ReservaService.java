@@ -22,6 +22,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
@@ -46,6 +47,7 @@ public class ReservaService {
     private final ResponsavelRepository responsavelRepository;
     private final AdministradorRepository administradorRepository;
     private final MaterialRepository materialRepository;
+    private final Clock clock;
 
     public ReservaService(
             ReservaRepository reservaRepository,
@@ -53,7 +55,8 @@ public class ReservaService {
             SolicitanteRepository solicitanteRepository,
             ResponsavelRepository responsavelRepository,
             AdministradorRepository administradorRepository,
-            MaterialRepository materialRepository
+            MaterialRepository materialRepository,
+            Clock clock
     ) {
         this.reservaRepository = reservaRepository;
         this.salaRepository = salaRepository;
@@ -61,6 +64,7 @@ public class ReservaService {
         this.responsavelRepository = responsavelRepository;
         this.administradorRepository = administradorRepository;
         this.materialRepository = materialRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -370,7 +374,29 @@ public class ReservaService {
     }
 
     private void validarIntervalo(LocalDateTime inicio, LocalDateTime fim) {
-        if (inicio == null || fim == null || !fim.isAfter(inicio)) {
+        if (inicio == null || fim == null) {
+            throw new IllegalArgumentException(
+                    "O início e o término são obrigatórios."
+            );
+        }
+        if (!inicio.isAfter(LocalDateTime.now(clock))) {
+            throw new IllegalArgumentException(
+                    "A data e hora de início devem estar no futuro."
+            );
+        }
+        if (inicio.getMinute() % 30 != 0 || fim.getMinute() % 30 != 0) {
+            throw new IllegalArgumentException(
+                    "O início e o término devem estar em incrementos de 30 minutos "
+                            + "(minutos 00 ou 30)."
+            );
+        }
+        if (inicio.getSecond() != 0 || inicio.getNano() != 0
+                || fim.getSecond() != 0 || fim.getNano() != 0) {
+            throw new IllegalArgumentException(
+                    "O início e o término devem ter segundos e nanos zerados."
+            );
+        }
+        if (!fim.isAfter(inicio)) {
             throw new IllegalArgumentException(
                     "O término deve ser posterior ao início."
             );

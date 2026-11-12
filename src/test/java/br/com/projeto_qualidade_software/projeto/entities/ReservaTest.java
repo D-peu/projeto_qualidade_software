@@ -18,15 +18,15 @@ class ReservaTest {
     @Test
     void intervaloComInicioAnteriorAoFimEValido() {
         Reserva reserva = new Reserva();
-        reserva.setInicio(LocalDateTime.of(2026, 10, 26, 10, 0));
-        reserva.setFim(LocalDateTime.of(2026, 10, 26, 11, 0));
+        reserva.setInicio(LocalDateTime.of(2040, 1, 2, 10, 0));
+        reserva.setFim(LocalDateTime.of(2040, 1, 2, 11, 0));
 
         assertTrue(reserva.isIntervaloValido());
     }
 
     @Test
     void intervaloComInicioEFimIguaisEInvalido() {
-        LocalDateTime inicioEFim = LocalDateTime.of(2026, 10, 26, 10, 0);
+        LocalDateTime inicioEFim = LocalDateTime.of(2040, 1, 2, 10, 0);
         Reserva reserva = new Reserva();
         reserva.setInicio(inicioEFim);
         reserva.setFim(inicioEFim);
@@ -37,8 +37,8 @@ class ReservaTest {
     @Test
     void intervaloComFimAnteriorAoInicioEInvalido() {
         Reserva reserva = new Reserva();
-        reserva.setInicio(LocalDateTime.of(2026, 10, 26, 11, 0));
-        reserva.setFim(LocalDateTime.of(2026, 10, 26, 10, 0));
+        reserva.setInicio(LocalDateTime.of(2040, 1, 2, 11, 0));
+        reserva.setFim(LocalDateTime.of(2040, 1, 2, 10, 0));
 
         assertFalse(reserva.isIntervaloValido());
     }
@@ -46,7 +46,7 @@ class ReservaTest {
     @Test
     void intervaloComInicioNuloEValidoSegundoComportamentoAtual() {
         Reserva reserva = new Reserva();
-        reserva.setFim(LocalDateTime.of(2026, 10, 26, 11, 0));
+        reserva.setFim(LocalDateTime.of(2040, 1, 2, 11, 0));
 
         assertTrue(reserva.isIntervaloValido());
     }
@@ -54,7 +54,7 @@ class ReservaTest {
     @Test
     void intervaloComFimNuloEValidoSegundoComportamentoAtual() {
         Reserva reserva = new Reserva();
-        reserva.setInicio(LocalDateTime.of(2026, 10, 26, 10, 0));
+        reserva.setInicio(LocalDateTime.of(2040, 1, 2, 10, 0));
 
         assertTrue(reserva.isIntervaloValido());
     }
@@ -120,7 +120,7 @@ class ReservaTest {
         Reserva reserva = new Reserva();
         Responsavel responsavelAnterior = new Responsavel();
         Administrador administradorAnterior = new Administrador();
-        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2026, 10, 25, 9, 0);
+        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2040, 1, 1, 9, 0);
         reserva.setStatus(StatusReserva.APROVADA);
         reserva.setResponsavel(responsavelAnterior);
         reserva.setAdministrador(administradorAnterior);
@@ -139,7 +139,7 @@ class ReservaTest {
         Reserva reserva = new Reserva();
         Responsavel responsavelAnterior = new Responsavel();
         Administrador administradorAnterior = new Administrador();
-        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2026, 10, 25, 9, 0);
+        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2040, 1, 1, 9, 0);
         reserva.setStatus(StatusReserva.APROVADA);
         reserva.setResponsavel(responsavelAnterior);
         reserva.setAdministrador(administradorAnterior);
@@ -170,7 +170,7 @@ class ReservaTest {
     @Test
     void callbackPrePersistPreservaDataEStatusJaDefinidos() {
         Reserva reserva = new Reserva();
-        LocalDateTime solicitadoEm = LocalDateTime.of(2026, 10, 25, 9, 0);
+        LocalDateTime solicitadoEm = LocalDateTime.of(2040, 1, 1, 9, 0);
         reserva.setSolicitadoEm(solicitadoEm);
         reserva.setStatus(StatusReserva.APROVADA);
 
@@ -183,7 +183,7 @@ class ReservaTest {
     @Test
     void callbackPrePersistDefineStatusSolicitadaQuandoStatusEstaAusente() {
         Reserva reserva = new Reserva();
-        LocalDateTime solicitadoEm = LocalDateTime.of(2026, 10, 25, 9, 0);
+        LocalDateTime solicitadoEm = LocalDateTime.of(2040, 1, 1, 9, 0);
         reserva.setSolicitadoEm(solicitadoEm);
         reserva.setStatus(null);
 
@@ -263,7 +263,7 @@ class ReservaTest {
         Reserva reserva = new Reserva();
         Responsavel responsavelAnterior = new Responsavel();
         Administrador administradorAnterior = new Administrador();
-        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2026, 10, 25, 9, 0);
+        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2040, 1, 1, 9, 0);
         reserva.setStatus(StatusReserva.APROVADA);
         reserva.setResponsavel(responsavelAnterior);
         reserva.setAdministrador(administradorAnterior);
