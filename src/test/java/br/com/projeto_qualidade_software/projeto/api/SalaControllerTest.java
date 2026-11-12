@@ -5,17 +5,24 @@ import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.services.SalaService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(value = SalaController.class, properties = "app.auth.enabled=false")
@@ -59,5 +66,36 @@ class SalaControllerTest {
                 .andExpect(content().json("[]", true));
 
         verify(salaService).listarSalas();
+    }
+
+    @Test
+    @DisplayName("CP-120 / RF03 / RF02 - Cria sala e retorna identidade gerada e estado inicial")
+    void criarSalaRetornaDadosCriados() throws Exception {
+        when(salaService.criarSala(20))
+                .thenReturn(new Sala(401L, 20, StatusSala.DISPONIVEL));
+
+        mockMvc.perform(post("/api/salas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"capacidade": 20}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(401))
+                .andExpect(jsonPath("$.capacidade").value(20))
+                .andExpect(jsonPath("$.statusSala").value("DISPONIVEL"));
+
+        verify(salaService).criarSala(20);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{\"capacidade\":19}", "{\"capacidade\":null}"})
+    @DisplayName("CP-121 / RF03 / INV-18 - Rejeita capacidade abaixo do mínimo ou ausente")
+    void criarSalaRejeitaCapacidadeInvalida(String body) throws Exception {
+        mockMvc.perform(post("/api/salas")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest());
+
+        verify(salaService, never()).criarSala(any());
     }
 }

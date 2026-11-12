@@ -1,0 +1,55 @@
+{
+  "story": "docs/stories/1.3.administrador-cadastrar-salas-adicionais.story.md",
+  "validated_at": "2026-11-12",
+  "validator": "@po",
+  "verdict": "GO",
+  "readiness_score": 8,
+  "confidence": "medium",
+  "status_transition": "Draft -> Ready",
+  "checks": {
+    "clear_title": "PASS",
+    "complete_description": "PASS",
+    "testable_acceptance_criteria": "PASS - capacity minimum, generated ID, default status, persistence/read-back, and profile denial specified",
+    "well_defined_scope": "PASS - create-only rooms by Administrator; no edit/deactivate or invented name/location fields",
+    "dependencies": "PARTIAL - story 1.2 remains InReview; its session/profile behavior and QA gate are an implementation prerequisite",
+    "complexity_estimate": "PASS - small-to-medium",
+    "business_value": "PASS",
+    "risks": "PASS - generated identity, capacity constraints, and server-side authorization documented",
+    "definition_of_done": "PASS - registered CP/CB cases, persistence, UI/API behavior, and verification commands defined",
+    "source_alignment": "PASS - PRD RF03/RF02, Sala entity, SalaResponse, API docs, and test inventories cross-checked"
+  },
+  "traceability": {
+    "requirements": [
+      "RF03",
+      "RF02",
+      "RF01 for unauthenticated rejection"
+    ],
+    "inventory": [
+      "INV-18",
+      "INV-08"
+    ],
+    "existing_supporting_case": "CP-89 verifies catalog listing only; not room creation",
+    "pending_registration": [
+      "CP case: Administrator create and catalog read-back; ID to be assigned in docs/testes/caixa-preta.md",
+      "CP case(s): non-Administrator and unauthenticated create denial with unchanged persistence; IDs to be assigned in docs/testes/caixa-preta.md",
+      "CB persistence integration case: generated ID and retained room data mapped to INV-18; ID to be assigned in docs/testes/caixa-branca.md"
+    ],
+    "not_counted_as_create_coverage": "CB-43 and CB-44 cover existing Sala constraints and currently map to INV-05; neither proves creation or authorization"
+  },
+  "generated_id_decision": "Use the existing generated Long Sala.id as persistent/catalog identity; SalaResponse exposes it. No human-readable room name, physical label, or location is required or added. A future requirement for such labels requires a separate PRD/model decision.",
+  "implementation_gate": [
+    "Story status is Ready.",
+    "Story 1.2's session/profile behavior is verified on the target branch and its QA gate is cleared; do not modify story 1.2 as part of this work.",
+    "Create/read-back, denial, and persistence CP/CB scenarios are registered with IDs and correct RF/INV mappings before implementation begins.",
+    "Implement only Administrator-only persistent room creation with capacity as the sole input; retain generated ID, default DISPONIVEL status, minimum capacity 20, and existing catalog behavior.",
+    "Do not add room name/location/physical-label fields, edit/deactivate flows, or unrelated admin functions."
+  ],
+  "findings": [
+    "No local parent epic or accumulated-context.md was found; stories 1.1 and 1.2 were checked for coherence and were not modified.",
+    "The generated-ID ambiguity is resolved from current model/API evidence, not left as a blocker.",
+    "Existing CP-89 is catalog-only. Existing CB-43/CB-44 are constraints mapped to INV-05 and are not evidence for this feature.",
+    "The core-config.yaml does not define coderabbit_integration.enabled; manual review applies as recorded in the story."
+  ],
+  "coderabbit": "N/A - no coderabbit_integration.enabled setting is configured; manual review applies",
+  "next_action": "Implementation may start only after the listed implementation gates are satisfied."
+}

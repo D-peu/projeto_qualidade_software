@@ -40,14 +40,27 @@ Os IDs de R1 e A1 devem ser **diferentes**, para detectar confusão entre os doi
 | CP-89 | PE | GET `/api/salas`, com várias salas cadastradas | 200; lista contém ID, capacidade e estado corretos para cada sala, sem campos adicionais da entidade |
 | CP-90 | PE | GET `/api/salas`, sem salas cadastradas | 200; corpo `[]` |
 
-## 2.2 Consulta de reservas pendentes (GET `/api/reservas/pendentes`, RF12)
+## 2.2 Cadastro de sala (RF03, RF02)
+
+Para os casos protegidos, autentique a conta indicada, mantenha o cookie da sessão e envie o `csrfToken` no cabeçalho `X-CSRF-Token`. Os cenários CP-120 a CP-123 foram executados por `SalaPostgresIntegrationTest` com PostgreSQL/Testcontainers em `./mvnw -B verify`; os resultados estão registrados em `docs/rtm.md`.
+
+| ID | Técnica | Rastreabilidade | Entrada | Resultado esperado |
+|---|---|---|---|---|
+| CP-120 | PE | RF03, RF02; INV-18, INV-08 | Administrador autenticado envia somente `capacidade: 20` para criar sala; em seguida consulta `GET /api/salas` | 201; resposta contém ID gerado, capacidade 20 e estado `DISPONIVEL`; a listagem subsequente contém a mesma identidade e os mesmos dados, além das salas existentes. O cliente não envia ID nem estado. |
+| CP-121 | VL | RF03; INV-18 | Administrador autenticado tenta criar sala com capacidade 19 | 400; mensagem de erro conforme contrato, nenhuma sala criada e a listagem mantém a contagem/dados anteriores. |
+| CP-122 | PE | RF02; INV-08 | Solicitante e Responsável autenticados tentam chamar diretamente a operação de criação | Para cada perfil: 403; nenhuma sala criada e a listagem mantém a contagem/dados anteriores. |
+| CP-123 | PE | RF01, RF02; INV-08 | Chamada direta à operação de criação sem sessão autenticada | 401; nenhuma sala criada e a listagem mantém a contagem/dados anteriores. |
+
+O inventário não identifica uma RN numerada específica para a capacidade mínima; por isso, os casos a rastreiam a RF03 e INV-18, sem criar um identificador de regra novo. CP-89 permanece somente como cobertura de listagem, não de criação.
+
+## 2.3 Consulta de reservas pendentes (GET `/api/reservas/pendentes`, RF12)
 
 | ID | Técnica | Entrada | Resultado esperado |
 |---|---|---|---|
 | CP-91 | PE | Reservas com status SOLICITADA, APROVADA, REJEITADA e CANCELADA e datas de solicitação distintas | 200; somente SOLICITADA, ordenadas por `solicitadoEm` crescente |
 | CP-92 | PE | Nenhuma reserva SOLICITADA | 200; corpo `[]` |
 
-## 2.3 Catálogo de recursos e alocação (RF08-RF09)
+## 2.4 Catálogo de recursos e alocação (RF08-RF09)
 
 Os endpoints de catálogo exigem sessão autenticada. As solicitações devem usar CSRF e as contas sintéticas devem ser criadas pela suíte.
 
@@ -305,7 +318,7 @@ Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não p
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-119) | 119 |
+| Casos de execução (CP-01 a CP-123) | 123 |
 | Transições de estado (TR-01 a TR-16) | 16 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
 | Executáveis só com estado preparado no banco | CP-38 e CP-45 |

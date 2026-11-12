@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
   title: API de Reservas de Salas
-  version: 1.1.0
+  version: 1.2.0
   description: >-
-    API para autenticar usuarios por sessao HTTP e solicitar/acompanhamento de
-    reservas de salas. Requisicoes mutaveis exigem token CSRF. As regras e
-    limitacoes estao descritas em api-reservas.md.
+    API para autenticar usuarios por sessao HTTP, cadastrar salas como
+    Administrador e solicitar/acompanhamento de reservas de salas. Requisicoes
+    mutaveis exigem token CSRF. As regras e limitacoes estao descritas em
+    api-reservas.md.
 servers:
   - url: http://localhost:8080
     description: Ambiente local
@@ -13,7 +14,7 @@ tags:
   - name: Autenticacao
     description: Login, sessao e protecao CSRF
   - name: Salas
-    description: Consulta de salas cadastradas
+    description: Consulta e cadastro de salas (cadastro somente para Administrador)
   - name: Recursos
     description: Consulta de docentes e materiais disponíveis
   - name: Reservas
@@ -116,7 +117,7 @@ paths:
           description: Token CSRF inválido
   /api/salas:
     get:
-      tags: [Recursos]
+      tags: [Salas]
       summary: Listar salas
       operationId: listarSalas
       responses:
@@ -130,6 +131,39 @@ paths:
                   $ref: '#/components/schemas/Sala'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
+    post:
+      tags: [Salas]
+      summary: Cadastrar sala
+      description: Requer sessão autenticada de Administrador. ID e estado são definidos pelo servidor.
+      operationId: cadastrarSala
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CriarSalaRequest'
+      responses:
+        '201':
+          description: Sala cadastrada com identidade gerada e estado DISPONIVEL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sala'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
   /api/professores:
     get:
       tags: [Recursos]
@@ -560,6 +594,14 @@ components:
         statusSala:
           type: string
           enum: [DISPONIVEL, RESERVADA, EM_MANUTENCAO]
+    CriarSalaRequest:
+      type: object
+      required: [capacidade]
+      properties:
+        capacidade:
+          type: integer
+          minimum: 20
+          description: Capacidade da sala em pessoas; mínimo de 20.
     Professor:
       type: object
       required: [id, nome]

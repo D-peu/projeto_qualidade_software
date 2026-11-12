@@ -326,6 +326,9 @@ test("Spring Boot static entry point loads the frontend and reservation API clie
   assert.match(app, /edit-reservation/);
   assert.match(app, /cancel-reservation/);
   assert.match(app, /ReservationApi\.listRooms/);
+  assert.match(app, /id="create-room-form"/);
+  assert.match(app, /ReservationApi\.createRoom/);
+  assert.match(app, /type="number" min="20" step="1" required/);
   assert.match(app, /ReservationApi\.createReservation/);
   assert.match(app, /ReservationApi\.changeSchedule/);
   assert.match(app, /ReservationApi\.cancelReservation/);

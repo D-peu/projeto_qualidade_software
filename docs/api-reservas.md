@@ -1,12 +1,12 @@
 # API de Reservas
 
 **Status:** Implementacao inicial
-**Versao do contrato:** 1.1.0
+**Versao do contrato:** 1.2.0
 **Contrato OpenAPI:** [openapi.yaml](openapi.yaml)
 
 ## Escopo
 
-A API autentica as contas cadastradas com senha protegida por hash e sessao HTTP, sem JWT. Ela expoe a consulta de salas e os fluxos de reserva implementados: solicitacao, consulta, listagem filtrada por estado ou solicitante, alteracao de horario, cancelamento, aprovacao e rejeicao. O frontend servido pelo Spring Boot usa essas rotas; os dados apresentados sao lidos e gravados no backend, nao em uma lista local. O contrato OpenAPI pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
+A API autentica as contas cadastradas com senha protegida por hash e sessao HTTP, sem JWT. Ela expoe a consulta e o cadastro de salas pelo Administrador, alem dos fluxos de reserva implementados: solicitacao, consulta, listagem filtrada por estado ou solicitante, alteracao de horario, cancelamento, aprovacao e rejeicao. O frontend servido pelo Spring Boot usa essas rotas; os dados apresentados sao lidos e gravados no backend, nao em uma lista local. O contrato OpenAPI pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
 
 O repositorio possui configuracao Maven e aplicacao Spring Boot. A interface Swagger UI, entretanto, nao esta publicada pela aplicacao porque o Springdoc ainda nao foi configurado; este contrato pode ser aberto no Swagger Editor ou carregado por uma instalacao Swagger UI.
 
@@ -38,6 +38,7 @@ Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor 
 | `GET` | `/api/auth/me` | Consultar conta da sessão atual | `200 OK` |
 | `POST` | `/api/auth/logout` | Encerrar a sessão atual | `204 No Content` |
 | `GET` | `/api/salas` | Listar salas cadastradas | `200 OK` |
+| `POST` | `/api/salas` | Cadastrar sala (somente Administrador) | `201 Created` |
 | `GET` | `/api/professores` | Listar docentes cadastrados para alocação (somente ID e nome) | `200 OK` |
 | `GET` | `/api/materiais` | Listar materiais cadastrados para alocação | `200 OK` |
 | `GET` | `/api/reservas?status=SOLICITADA` | Listar reservas pelo estado | `200 OK` |
@@ -50,7 +51,7 @@ Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor 
 | `POST` | `/api/reservas/{reservaId}/aprovacao` | Aprovar reserva solicitada | `200 OK` |
 | `POST` | `/api/reservas/{reservaId}/rejeicao` | Rejeitar reserva solicitada | `200 OK` |
 
-Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
+Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. O cadastro de salas exige perfil Administrador; outros perfis recebem `403 Forbidden`, e chamadas sem sessão recebem `401 Unauthorized`. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
 
 ### Contas de demonstração
 
@@ -67,7 +68,27 @@ Accept: application/json
 
 ## Integracao do frontend
 
-O frontend autentica no servidor, restaura a sessão ao recarregar a página e mostra a área correspondente ao perfil retornado: Solicitante, Responsável ou Administrador. O ID e o tipo de solicitante/aprovador são derivados da conta autenticada; não existe mais configuração manual de IDs. A sessão expira após 30 minutos de inatividade. A tela de Administrador continua sem gestão de salas porque a API não oferece rotas de cadastro.
+O frontend autentica no servidor, restaura a sessão ao recarregar a página e mostra a área correspondente ao perfil retornado: Solicitante, Responsável ou Administrador. O ID e o tipo de solicitante/aprovador são derivados da conta autenticada; não existe mais configuração manual de IDs. A sessão expira após 30 minutos de inatividade. Na tela de Administrador, é possível cadastrar uma sala informando somente sua capacidade (mínimo 20); o servidor gera o ID e inicia o estado como `DISPONIVEL`. Edição/desativação de salas e cadastro de outros recursos ainda não estão disponíveis.
+
+### Cadastrar sala
+
+Somente a conta de perfil `ADMINISTRADOR` pode cadastrar uma sala. O corpo aceita exclusivamente a capacidade; o ID é gerado pelo banco e o estado inicial é `DISPONIVEL`.
+
+```http
+POST /api/salas
+Content-Type: application/json
+X-CSRF-Token: <token da sessão>
+
+{"capacidade":20}
+```
+
+Retorna `201 Created` com a representação persistida:
+
+```json
+{"id":2,"capacidade":20,"statusSala":"DISPONIVEL"}
+```
+
+Capacidade ausente ou inferior a 20 retorna `400 Bad Request`; sessão ausente retorna `401 Unauthorized`; perfil sem permissão retorna `403 Forbidden`. O catálogo `GET /api/salas` apresenta a nova sala nas consultas seguintes.
 
 ## Exemplos
 

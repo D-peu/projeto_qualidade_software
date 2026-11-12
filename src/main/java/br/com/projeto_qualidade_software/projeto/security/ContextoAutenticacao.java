@@ -67,6 +67,13 @@ public final class ContextoAutenticacao {
         }
     }
 
+    public static void exigirAdministrador() {
+        UsuarioAutenticado usuario = usuarioAtual();
+        if (usuario == null || usuario.perfil() != PerfilUsuario.ADMINISTRADOR) {
+            throw new AcessoNegadoException("Somente Administrador pode cadastrar salas.");
+        }
+    }
+
     public static void exigirAcessoReserva(Reserva reserva) {
         UsuarioAutenticado usuario = usuarioAtual();
         if (usuario != null

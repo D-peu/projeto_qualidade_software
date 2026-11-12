@@ -84,7 +84,7 @@ Esta matriz registra o que o backend existente realmente garante. Ela nao substi
 | Requisitos | Situacao no backend atual | Limite conhecido |
 |---|---|---|
 | RF01-RF02 | Parcial | Login por e-mail/senha com contas persistidas, hash PBKDF2 e sessão HTTP; rotas de reserva aplicam perfil e posse. Cadastro/gestão de contas, recuperação de senha e autenticação institucional não existem. |
-| RF03-RF05 | Parcial | A API permite consultar salas, docentes (contas Professor) e materiais; cadastro/edição/desativação, gestão de usuários/bloqueios e pesquisa com filtros ainda não estão disponíveis. |
+| RF03-RF05 | Parcial | O Administrador pode cadastrar e consultar salas; docentes (contas Professor) e materiais podem ser consultados. Edição/desativação de salas, CRUD de docentes/materiais, gestão de usuários/bloqueios e pesquisa com filtros ainda não estão disponíveis. |
 | RF06 | Parcial | A interface autenticada cria, consulta, altera e cancela reservas via API; o servidor deriva a identidade da sessão e restringe solicitantes às próprias reservas. |
 | RF07 | Implementado | O serviço injeta `Clock` e valida início estritamente futuro, minutos 00/30 e segundos/nanos zerados em criação e alteração, além de exigir término posterior. Testes unitários parametrizados, integração HTTP e contrato Node cobrem as violações, intervalos válidos e adjacência. |
 | RF08 | Implementado | A sobreposição é verificada para sala, docentes associados e materiais associados; contas Professor são reutilizadas como docentes e intervalos adjacentes são aceitos. |

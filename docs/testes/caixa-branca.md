@@ -21,6 +21,15 @@ Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/services/SalaS
 |---|---|---|---|---|
 | CB-59 | `listarSalas` | Delega a consulta de todas as salas para `SalaRepository.findAll` e retorna o resultado | U | RF05 |
 
+### 1.2 Persistência da criação de sala (story 1.3; pré-implementação)
+
+Os casos abaixo devem ser implementados com o fluxo de criação da story 1.3 e PostgreSQL real. São especificações, não evidência de código já implementado ou executado. CB-43 e CB-44 permanecem restritos às invariantes existentes de `Sala`, mapeados a INV-05; não contam como cobertura da operação de criação.
+
+| ID | Fluxo | Verificação | Nível | Rastreabilidade |
+|---|---|---|---|---|
+| CB-69 | Criar sala com capacidade 20 | A persistência gera uma identidade não nula; após recarregar a sala pelo catálogo/repositório, o mesmo ID, capacidade 20 e estado `DISPONIVEL` são observados | I | RF03; INV-18 |
+| CB-70 | Criar sala com capacidade inválida | Capacidade 19 e valor nulo são rejeitados pela validação/persistência; após cada tentativa, não há nova sala persistida | I | RF03; INV-18 |
+
 ## 2. `ReservaService`
 
 Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/services/ReservaService.java`
@@ -254,6 +263,7 @@ Nenhum método passa de complexidade 4. Os de maior risco para ramos são `valid
 | `ApiExceptionHandlerTest` | CB-36 a CB-42 | U e A |
 | `RestricoesPersistenciaIT` | CB-43 a CB-47 | I (Testcontainers) |
 | `ReservaPostgresIntegrationTest` | CB-48 a CB-58 e CB-68 | I (Testcontainers) |
+| `SalaPostgresIntegrationTest` | CB-69 a CB-70 | I (Testcontainers) |
 
 ## 13. Prova de proteção (mutação manual)
 
@@ -280,5 +290,6 @@ Para cada regra crítica, a regra é quebrada temporariamente no código, o test
 | `SalaService` | CB-59 |
 | `ReservaService` e `ReservaController` (pendentes) | CB-60 a CB-62 |
 | Recursos e concorrência (RF08-RF09) | CB-63 a CB-68 |
-| Total | 68 identificadores de caso |
+| Criação e persistência de sala (story 1.3; executados em `SalaPostgresIntegrationTest`) | CB-69 a CB-70 |
+| Total | 70 identificadores de caso |
 | Ramos só alcançáveis por teste direto | CB-22, CB-25, CB-26 a CB-29, CB-32, CB-41 |
