@@ -6,6 +6,8 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "reservas")
@@ -26,6 +28,26 @@ public class Reserva {
     @ManyToOne
     @JoinColumn(name = "responsavel_id")
     private Responsavel responsavel;
+
+    @ManyToOne
+    @JoinColumn(name = "administrador_id")
+    private Administrador administrador;
+
+    @ManyToMany
+    @JoinTable(
+            name = "reservas_professores",
+            joinColumns = @JoinColumn(name = "reserva_id"),
+            inverseJoinColumns = @JoinColumn(name = "professor_id")
+    )
+    private Set<Solicitante> professores = new LinkedHashSet<>();
+
+    @ManyToMany
+    @JoinTable(
+            name = "reservas_materiais",
+            joinColumns = @JoinColumn(name = "reserva_id"),
+            inverseJoinColumns = @JoinColumn(name = "material_id")
+    )
+    private Set<Material> materiais = new LinkedHashSet<>();
 
     @NotNull
     @Column(nullable = false)
@@ -92,15 +114,23 @@ public class Reserva {
             );
         }
 
-        if (status != StatusReserva.SOLICITADA) {
-            throw new IllegalStateException(
-                    "Somente reservas solicitadas podem ser aprovadas."
+        validarSolicitada();
+        this.responsavel = responsavel;
+        this.administrador = null;
+        registrarAprovacao();
+    }
+
+    public void aprovar(Administrador administrador) {
+        if (administrador == null) {
+            throw new IllegalArgumentException(
+                    "É necessário informar o administrador pela aprovação."
             );
         }
 
-        this.responsavel = responsavel;
-        this.status = StatusReserva.APROVADA;
-        this.aprovadoEm = LocalDateTime.now();
+        validarSolicitada();
+        this.responsavel = null;
+        this.administrador = administrador;
+        registrarAprovacao();
     }
 
     public void rejeitar(Responsavel responsavel) {
@@ -110,14 +140,36 @@ public class Reserva {
             );
         }
 
-        if (status != StatusReserva.SOLICITADA) {
-            throw new IllegalStateException(
-                    "Somente reservas solicitadas podem ser rejeitadas."
+        validarSolicitada();
+        this.responsavel = responsavel;
+        this.administrador = null;
+        this.status = StatusReserva.REJEITADA;
+    }
+
+    public void rejeitar(Administrador administrador) {
+        if (administrador == null) {
+            throw new IllegalArgumentException(
+                    "É necessário informar o administrador pela decisão."
             );
         }
 
-        this.responsavel = responsavel;
+        validarSolicitada();
+        this.responsavel = null;
+        this.administrador = administrador;
         this.status = StatusReserva.REJEITADA;
+    }
+
+    private void validarSolicitada() {
+        if (status != StatusReserva.SOLICITADA) {
+            throw new IllegalStateException(
+                    "Somente reservas solicitadas podem receber uma decisão."
+            );
+        }
+    }
+
+    private void registrarAprovacao() {
+        this.status = StatusReserva.APROVADA;
+        this.aprovadoEm = LocalDateTime.now();
     }
 
     public Long getId() {
@@ -150,6 +202,34 @@ public class Reserva {
 
     public void setResponsavel(Responsavel responsavel) {
         this.responsavel = responsavel;
+    }
+
+    public Administrador getAdministrador() {
+        return administrador;
+    }
+
+    public void setAdministrador(Administrador administrador) {
+        this.administrador = administrador;
+    }
+
+    public Set<Solicitante> getProfessores() {
+        return professores;
+    }
+
+    public void setProfessores(Set<Solicitante> professores) {
+        this.professores = professores == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(professores);
+    }
+
+    public Set<Material> getMateriais() {
+        return materiais;
+    }
+
+    public void setMateriais(Set<Material> materiais) {
+        this.materiais = materiais == null
+                ? new LinkedHashSet<>()
+                : new LinkedHashSet<>(materiais);
     }
 
     public LocalDateTime getInicio() {

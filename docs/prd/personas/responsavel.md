@@ -40,6 +40,10 @@ Perfil que aprova todas as reservas novas e alteracoes de data/horario, valida a
 | Registrar retirada e devolucao de materiais | Permitido |
 | Gerenciar cadastros, usuarios ou permissoes | Nao atribuido a este perfil |
 
+## Situacao atual da API
+
+O Responsável autentica-se com a própria conta. Aprovação e rejeição só são permitidas a sessões de Responsável ou Administrador, e o backend verifica o ID da sessão antes de registrar quem decidiu. O modelo não classifica recursos como restritos, então permanece pendente exigir aprovação apenas para esses recursos. Validação de docentes, retirada/devolução de materiais e histórico auditável também permanecem pendentes.
+
 ## Qualidade relevante - ISO/IEC 25010
 
 - **Seguranca:** somente o perfil Responsavel pode aprovar reservas e alteracoes de data/horario.

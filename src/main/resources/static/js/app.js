@@ -6,33 +6,12 @@
     RESERVATION_STATUS,
     ROOM_STATUSES,
     RESERVATION_STATUSES,
-    ACTIVE_RESERVATION_STATUSES,
   } = window.ReservationRules;
 
-  const mockUsers = [
-    {
-      name: "Camila Santos",
-      email: "solicitante@senac.local",
-      password: "solicitante123",
-      role: "solicitante",
-    },
-    {
-      name: "Rafael Lima",
-      email: "responsavel@senac.local",
-      password: "responsavel123",
-      role: "responsavel",
-    },
-    {
-      name: "Mariana Costa",
-      email: "admin@senac.local",
-      password: "admin123",
-      role: "administrador",
-    },
-  ];
   const allowedProfiles = {
-    solicitante: ["solicitante"],
-    responsavel: ["responsavel"],
-    administrador: ["administrador", "responsavel"],
+    SOLICITANTE: ["solicitante"],
+    RESPONSAVEL: ["responsavel"],
+    ADMINISTRADOR: ["administrador"],
   };
 
   const dayOffset = (offset) => {
@@ -50,30 +29,19 @@
     applicantView: "rooms",
     roomFilter: "TODAS",
     searchTerm: "",
-    rooms: [
-      { id: 101, capacidade: 30, statusSala: ROOM_STATUS.AVAILABLE },
-      { id: 204, capacidade: 24, statusSala: ROOM_STATUS.RESERVED },
-      { id: 305, capacidade: 40, statusSala: ROOM_STATUS.MAINTENANCE },
-      { id: 408, capacidade: 22, statusSala: ROOM_STATUS.RESERVED },
-    ],
-    reservations: [
-      {
-        id: "RSV-204",
-        salaId: 204,
-        solicitante: "Você",
-        inicio: `${dayOffset(1)}T09:00`,
-        fim: `${dayOffset(1)}T11:00`,
-        status: RESERVATION_STATUS.APPROVED,
-      },
-      {
-        id: "RSV-408",
-        salaId: 408,
-        solicitante: "Marina Alves",
-        inicio: `${dayOffset(2)}T13:00`,
-        fim: `${dayOffset(2)}T15:00`,
-        status: RESERVATION_STATUS.REQUESTED,
-      },
-    ],
+    identity: {
+      solicitanteId: "",
+      tipoSolicitante: "",
+      responsavelId: "",
+      administradorId: "",
+    },
+    rooms: [],
+    professors: [],
+    materials: [],
+    reservations: [],
+    pendingReservations: [],
+    loading: true,
+    apiError: "",
   };
 
   const content = document.getElementById("app-content");
@@ -88,6 +56,7 @@
   const dialog = document.getElementById("reservation-dialog");
   const reservationForm = document.getElementById("reservation-form");
   const formError = document.getElementById("form-error");
+  const connectionStatus = document.getElementById("connection-status");
   const profileNames = {
     solicitante: "Solicitante",
     responsavel: "Responsável",
@@ -110,7 +79,12 @@
     state.rooms.find((room) => room.id === Number(roomId));
 
   const getReservation = (reservationId) =>
-    state.reservations.find((reservation) => reservation.id === reservationId);
+    state.reservations.find(
+      (reservation) => String(reservation.id) === String(reservationId),
+    ) ||
+    state.pendingReservations.find(
+      (reservation) => String(reservation.id) === String(reservationId),
+    );
 
   const roomStatusClass = (status) => {
     const classes = {
@@ -164,18 +138,6 @@
     window.setTimeout(() => toast.remove(), 4200);
   };
 
-  const updateRoomAvailability = (roomId) => {
-    const room = getRoom(roomId);
-    if (!room) {
-      return;
-    }
-    room.statusSala = window.ReservationRules.getRoomAvailability(
-      room.statusSala,
-      state.reservations,
-      roomId,
-    );
-  };
-
   const renderStats = () => {
     const available = state.rooms.filter(
       (room) => room.statusSala === ROOM_STATUS.AVAILABLE,
@@ -183,9 +145,7 @@
     const reserved = state.rooms.filter(
       (room) => room.statusSala === ROOM_STATUS.RESERVED,
     ).length;
-    const pending = state.reservations.filter(
-      (reservation) => reservation.status === RESERVATION_STATUS.REQUESTED,
-    ).length;
+    const pending = state.pendingReservations.length;
     return `
       <section class="stats-grid" aria-label="Resumo de salas e solicitações">
         <article class="stat-card">
@@ -270,10 +230,35 @@
       : `<div class="empty-state">Nenhuma sala encontrada com esses filtros.</div>`;
   };
 
+  const renderConnectionStatus = () => {
+    if (state.loading) {
+      connectionStatus.innerHTML =
+        '<div class="info-banner" role="status">Sincronizando dados com o servidor…</div>';
+    } else if (state.apiError) {
+      connectionStatus.innerHTML = `
+        <div class="info-banner is-error" role="alert">
+          <span>${escapeHtml(state.apiError)}</span>
+          <button class="button button-quiet button-small" type="button" id="retry-api">Tentar novamente</button>
+        </div>
+      `;
+    } else {
+      connectionStatus.innerHTML = "";
+    }
+  };
+
+  const renderIdentitySummary = () => {
+    document.getElementById("identity-summary").textContent =
+      state.currentUser?.email || "";
+  };
+
   const renderMyReservations = () => {
-    const ownReservations = state.reservations.filter(
-      (reservation) => reservation.solicitante === "Você",
-    );
+    if (state.loading) {
+      return `<div class="empty-state">Carregando suas reservas…</div>`;
+    }
+    if (state.apiError) {
+      return `<div class="empty-state">Não foi possível carregar suas reservas do servidor.</div>`;
+    }
+    const ownReservations = state.reservations;
     if (ownReservations.length === 0) {
       return `<div class="empty-state">Você ainda não possui solicitações. Consulte as salas disponíveis para começar.</div>`;
     }
@@ -290,7 +275,8 @@
             .map((reservation) => {
               const room = getRoom(reservation.salaId);
               const roomLabel = room ? `Sala ${room.id}` : `Sala ${reservation.salaId}`;
-              const canManage = [
+              const canEdit = reservation.status === RESERVATION_STATUS.REQUESTED;
+              const canCancel = [
                 RESERVATION_STATUS.REQUESTED,
                 RESERVATION_STATUS.APPROVED,
               ].includes(reservation.status);
@@ -301,7 +287,7 @@
                 <article class="reservation-row">
                   <div class="reservation-primary">
                     <strong>${roomLabel} <span class="room-id">· ${reservation.id}</span></strong>
-                    <span>Solicitante: ${escapeHtml(reservation.solicitante)}</span>
+                    <span>Solicitante: Você</span>
                   </div>
                   <div class="reservation-detail">
                     <strong>${formatDate(reservation.inicio)}</strong>
@@ -312,8 +298,8 @@
                     <span class="status-badge ${statusClass}" aria-label="Estado da reserva: ${reservation.status}">${reservation.status}</span>
                   </div>
                   <div class="reservation-actions">
-                    ${canManage ? `<button class="button button-quiet button-small" type="button" data-action="edit-reservation" data-reservation-id="${reservation.id}">Alterar data</button>` : ""}
-                    ${canManage ? `<button class="button button-danger button-small" type="button" data-action="cancel-reservation" data-reservation-id="${reservation.id}">Cancelar</button>` : ""}
+                    ${canEdit ? `<button class="button button-quiet button-small" type="button" data-action="edit-reservation" data-reservation-id="${reservation.id}">Alterar data</button>` : ""}
+                    ${canCancel ? `<button class="button button-danger button-small" type="button" data-action="cancel-reservation" data-reservation-id="${reservation.id}">Cancelar</button>` : ""}
                   </div>
                 </article>
               `;
@@ -333,28 +319,32 @@
       action,
     );
     const contentSection =
-      state.applicantView === "rooms"
-        ? `
-          <div class="toolbar">
-            <div class="segmented-control" role="group" aria-label="Filtrar salas por estado">
-              ${["TODAS", ...ROOM_STATUSES]
-                .map(
-                  (status) => `
-                    <button class="segment-button${state.roomFilter === status ? " is-active" : ""}" type="button" data-room-filter="${status}" aria-pressed="${state.roomFilter === status}">
-                      ${status === "TODAS" ? "Todas" : status}
-                    </button>
-                  `,
-                )
-                .join("")}
+      state.loading && state.applicantView === "rooms"
+        ? `<div class="empty-state">Carregando salas do servidor…</div>`
+        : state.apiError && state.applicantView === "rooms"
+          ? `<div class="empty-state">Não foi possível carregar as salas do servidor.</div>`
+        : state.applicantView === "rooms"
+          ? `
+            <div class="toolbar">
+              <div class="segmented-control" role="group" aria-label="Filtrar salas por estado">
+                ${["TODAS", ...ROOM_STATUSES]
+                  .map(
+                    (status) => `
+                      <button class="segment-button${state.roomFilter === status ? " is-active" : ""}" type="button" data-room-filter="${status}" aria-pressed="${state.roomFilter === status}">
+                        ${status === "TODAS" ? "Todas" : status}
+                      </button>
+                    `,
+                  )
+                  .join("")}
+              </div>
+              <label>
+                <span class="sr-only">Buscar por sala, capacidade ou estado</span>
+                <input class="search-field" id="room-search" type="search" placeholder="Buscar sala ou capacidade" value="${escapeHtml(state.searchTerm)}">
+              </label>
             </div>
-            <label>
-              <span class="sr-only">Buscar por sala, capacidade ou estado</span>
-              <input class="search-field" id="room-search" type="search" placeholder="Buscar sala ou capacidade" value="${escapeHtml(state.searchTerm)}">
-            </label>
-          </div>
-          <div class="room-grid" id="room-grid"></div>
-        `
-        : renderMyReservations();
+            <div class="room-grid" id="room-grid"></div>
+          `
+          : renderMyReservations();
     content.innerHTML = `
       ${heading}
       ${renderStats()}
@@ -369,11 +359,13 @@
     }
   };
 
-  const renderResponsible = () => {
-    const pending = state.reservations.filter(
-      (reservation) => reservation.status === RESERVATION_STATUS.REQUESTED,
-    );
-    const requestContent = pending.length
+  const renderPendingRequests = () => {
+    const pending = state.pendingReservations;
+    const requestContent = state.loading
+      ? `<div class="empty-state">Carregando solicitações do servidor…</div>`
+      : state.apiError
+        ? `<div class="empty-state">Não foi possível carregar as solicitações do servidor.</div>`
+      : pending.length
       ? pending
           .map((reservation) => {
             const room = getRoom(reservation.salaId);
@@ -383,7 +375,7 @@
               <article class="request-card">
                 <div class="request-main">
                   <div class="request-heading">
-                    <h3>${escapeHtml(reservation.solicitante)}</h3>
+                    <h3>Solicitante #${reservation.solicitanteId}</h3>
                     <span class="status-badge ${reservationStatusClass(reservation.status)}">${reservation.status}</span>
                   </div>
                   <div class="request-meta">
@@ -404,17 +396,7 @@
           .join("")
       : `<div class="empty-state">Não há solicitações pendentes para analisar.</div>`;
 
-    content.innerHTML = `
-      ${renderHeading(
-        "ANÁLISE DE RESERVAS",
-        "Solicitações pendentes",
-        "Revise os dados de cada pedido e registre sua decisão.",
-      )}
-      ${renderStats()}
-      <div class="info-banner">
-        <span class="info-icon" aria-hidden="true">i</span>
-        <span>Apenas solicitações no estado <strong>SOLICITADA</strong> podem ser aprovadas ou rejeitadas.</span>
-      </div>
+    return `
       <section class="panel" aria-labelledby="requests-title">
         <div class="panel-heading">
           <div>
@@ -427,39 +409,21 @@
     `;
   };
 
-  const renderAdminRooms = () => `
-    <div class="room-admin-grid">
-      ${state.rooms
-        .map((room) => {
-          const safeStatus = ROOM_STATUSES.includes(room.statusSala)
-            ? room.statusSala
-            : ROOM_STATUS.MAINTENANCE;
-          return `
-            <form class="admin-room-row" data-admin-room="${room.id}">
-              <div class="admin-room-name">
-                <strong>Sala ${room.id}</strong>
-                <span>Estado atual: <span class="status-badge ${roomStatusClass(safeStatus)}">${safeStatus}</span></span>
-              </div>
-              <div class="admin-field">
-                <label for="capacity-${room.id}">Capacidade</label>
-                <input id="capacity-${room.id}" name="capacidade" type="number" min="20" step="1" value="${room.capacidade}" required>
-              </div>
-              <div class="admin-field">
-                <label for="status-${room.id}">StatusSala</label>
-                <select id="status-${room.id}" name="statusSala" required>
-                  ${ROOM_STATUSES.map(
-                    (status) =>
-                      `<option value="${status}"${safeStatus === status ? " selected" : ""}>${status}</option>`,
-                  ).join("")}
-                </select>
-              </div>
-              <button class="button button-quiet button-small" type="submit">Salvar alterações</button>
-            </form>
-          `;
-        })
-        .join("")}
-    </div>
-  `;
+  const renderResponsible = () => {
+    content.innerHTML = `
+      ${renderHeading(
+        "ANÁLISE DE RESERVAS",
+        "Solicitações pendentes",
+        "Revise os dados de cada pedido e registre sua decisão.",
+      )}
+      ${renderStats()}
+      <div class="info-banner">
+        <span class="info-icon" aria-hidden="true">i</span>
+        <span>Apenas solicitações no estado <strong>SOLICITADA</strong> podem ser aprovadas ou rejeitadas.</span>
+      </div>
+      ${renderPendingRequests()}
+    `;
+  };
 
   const renderAdministrator = () => {
     const maintenanceCount = state.rooms.filter(
@@ -468,22 +432,59 @@
     content.innerHTML = `
       ${renderHeading(
         "CONTROLE DE RECURSOS",
-        "Gerenciar salas",
-        "Atualize a capacidade e a disponibilidade das salas cadastradas.",
+        "Consultar salas",
+        "Consulte os dados das salas cadastradas no servidor.",
       )}
       ${renderStats()}
       <div class="info-banner">
         <span class="info-icon" aria-hidden="true">i</span>
-        <span>Uma sala em <strong>EM_MANUTENCAO</strong> fica indisponível para novas solicitações. No momento, ${maintenanceCount} ${maintenanceCount === 1 ? "sala está" : "salas estão"} em manutenção.</span>
+        <span>A API ainda não oferece operações administrativas para alterar cadastro, capacidade ou estado das salas. ${maintenanceCount} ${maintenanceCount === 1 ? "sala está" : "salas estão"} em manutenção.</span>
       </div>
       <section aria-labelledby="admin-rooms-title">
         <div class="section-heading">
           <div>
             <h2 id="admin-rooms-title">Salas cadastradas</h2>
-            <p>Os estados disponíveis correspondem ao enum StatusSala.</p>
+            <p>Dados consultados diretamente do servidor.</p>
           </div>
         </div>
-        ${renderAdminRooms()}
+        ${
+          state.loading
+            ? '<div class="empty-state">Carregando salas do servidor…</div>'
+            : state.apiError
+              ? '<div class="empty-state">Não foi possível carregar as salas do servidor.</div>'
+            : `<div class="room-grid">${
+                state.rooms.length
+                  ? state.rooms
+                      .map((room) => {
+                        const safeStatus = ROOM_STATUSES.includes(room.statusSala)
+                          ? room.statusSala
+                          : ROOM_STATUS.MAINTENANCE;
+                        return `
+                          <article class="room-card${safeStatus === ROOM_STATUS.AVAILABLE ? "" : " is-unavailable"}">
+                            <div class="room-card-top">
+                              <div>
+                                <div class="room-title-row"><h3 class="room-title">Sala ${room.id}</h3><span class="room-id">#${room.id}</span></div>
+                                <p class="room-capacity">Capacidade para ${room.capacidade} pessoas</p>
+                              </div>
+                              <span class="status-badge ${roomStatusClass(safeStatus)}">${safeStatus}</span>
+                            </div>
+                            <div class="room-card-footer"><span class="availability-copy">${getRoomStatusDescription(safeStatus)}</span></div>
+                          </article>
+                        `;
+                      })
+                      .join("")
+                  : '<div class="empty-state">Nenhuma sala cadastrada.</div>'
+              }</div>`
+        }
+      </section>
+      <section aria-labelledby="admin-requests-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="admin-requests-title">Solicitações pendentes</h2>
+            <p>Administradores também podem registrar decisões pela API.</p>
+          </div>
+        </div>
+        ${renderPendingRequests()}
       </section>
     `;
   };
@@ -493,14 +494,13 @@
       return;
     }
     profileLabel.textContent = profileNames[state.profile];
-    accountName.textContent = state.currentUser.name;
-    const pending = state.reservations.filter(
-      (reservation) => reservation.status === RESERVATION_STATUS.REQUESTED,
-    ).length;
+    const pending = state.pendingReservations.length;
     pendingCount.textContent = String(pending);
     pendingCount.classList.toggle("has-count", pending > 0);
+    renderConnectionStatus();
+    renderIdentitySummary();
     document.querySelectorAll("[data-profile]").forEach((button) => {
-      const allowed = allowedProfiles[state.currentUser.role].includes(
+      const allowed = allowedProfiles[state.currentUser.perfil].includes(
         button.dataset.profile,
       );
       button.hidden = !allowed;
@@ -525,49 +525,96 @@
   const setProfile = (profile) => {
     if (
       !state.currentUser ||
-      !allowedProfiles[state.currentUser.role].includes(profile)
+      !allowedProfiles[state.currentUser.perfil].includes(profile)
     ) {
       return;
     }
     state.profile = profile;
+    state.applicantView = profile === "solicitante" ? state.applicantView : "rooms";
     render();
+    void refreshData();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  loginForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const formData = new FormData(loginForm);
-    const email = String(formData.get("email")).trim().toLocaleLowerCase("pt-BR");
-    const password = String(formData.get("password"));
-    const user = mockUsers.find(
-      (account) => account.email === email && account.password === password,
-    );
-
-    if (!user) {
-      loginError.textContent = "E-mail ou senha inválidos. Confira os dados e tente novamente.";
-      return;
+  const abrirAplicacao = (user) => {
+    const profile = allowedProfiles[user.perfil]?.[0];
+    if (!profile || !Number.isSafeInteger(Number(user.id))) {
+      throw new window.ReservationApi.ApiError(
+        "A API retornou um perfil de usuário inválido.",
+      );
     }
 
     state.currentUser = user;
-    state.profile = user.role === "administrador" ? "administrador" : user.role;
+    state.profile = profile;
+    state.identity = {
+      solicitanteId: profile === "solicitante" ? String(user.id) : "",
+      tipoSolicitante: user.tipoSolicitante || "",
+      responsavelId: profile === "responsavel" ? String(user.id) : "",
+      administradorId: profile === "administrador" ? String(user.id) : "",
+    };
+    accountName.textContent = user.nome;
     loginError.textContent = "";
     loginScreen.hidden = true;
     application.hidden = false;
     render();
+    void refreshData();
+  };
+
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(loginForm);
+    const email = String(formData.get("email")).trim().toLocaleLowerCase("pt-BR");
+    const password = String(formData.get("password"));
+    const submitButton = loginForm.querySelector('button[type="submit"]');
+    submitButton.disabled = true;
+    loginError.textContent = "";
+    try {
+      const user = await window.ReservationApi.login(email, password);
+      abrirAplicacao(user);
+    } catch (error) {
+      loginError.textContent =
+        error instanceof window.ReservationApi.ApiError
+          ? error.message
+          : "Não foi possível entrar. Tente novamente.";
+    } finally {
+      submitButton.disabled = false;
+    }
   });
 
   loginForm.addEventListener("input", () => {
     loginError.textContent = "";
   });
 
-  document.getElementById("logout-button").addEventListener("click", () => {
+  const encerrarSessao = () => {
     state.currentUser = null;
     state.profile = null;
+    state.identity = {
+      solicitanteId: "",
+      tipoSolicitante: "",
+      responsavelId: "",
+      administradorId: "",
+    };
+    state.rooms = [];
+    state.professors = [];
+    state.materials = [];
+    state.reservations = [];
+    state.pendingReservations = [];
     application.hidden = true;
     loginScreen.hidden = false;
     loginForm.reset();
+    accountName.textContent = "";
     loginError.textContent = "";
     document.getElementById("login-email").focus();
+  };
+
+  document.getElementById("logout-button").addEventListener("click", async () => {
+    try {
+      await window.ReservationApi.logout();
+    } catch (error) {
+      console.error("Falha ao encerrar a sessão no servidor.", error);
+    } finally {
+      encerrarSessao();
+    }
   });
 
   const setDialogDateDefaults = () => {
@@ -575,6 +622,105 @@
     document.getElementById("start-time").value = "09:00";
     document.getElementById("end-date").value = dayOffset(1);
     document.getElementById("end-time").value = "10:00";
+  };
+
+  const preencherOpcoesRecursos = (selectId, resources) => {
+    const select = document.getElementById(selectId);
+    select.innerHTML = resources
+      .map((resource) =>
+        `<option value="${Number(resource.id)}">${escapeHtml(resource.nome)}</option>`,
+      )
+      .join("");
+  };
+
+  let refreshSequence = 0;
+  const refreshData = async () => {
+    const sequence = ++refreshSequence;
+    state.loading = true;
+    state.apiError = "";
+    render();
+    try {
+      const [rooms, pendingReservations] = await Promise.all([
+        window.ReservationApi.listRooms(),
+        state.profile === "solicitante"
+          ? Promise.resolve([])
+          : window.ReservationApi.listReservations(RESERVATION_STATUS.REQUESTED),
+      ]);
+      if (sequence !== refreshSequence) {
+        return;
+      }
+      if (!Array.isArray(rooms) || !Array.isArray(pendingReservations)) {
+        throw new window.ReservationApi.ApiError(
+          "A API retornou dados em um formato inesperado.",
+        );
+      }
+
+      state.rooms = rooms;
+      state.pendingReservations = pendingReservations;
+      const [professors, materials] = await Promise.all([
+        window.ReservationApi.listProfessors(),
+        window.ReservationApi.listMaterials(),
+      ]);
+      if (sequence !== refreshSequence) {
+        return;
+      }
+      if (!Array.isArray(professors) || !Array.isArray(materials)) {
+        throw new window.ReservationApi.ApiError(
+          "A API retornou um catálogo de recursos inválido.",
+        );
+      }
+      state.professors = professors;
+      state.materials = materials;
+      if (
+        state.profile === "solicitante" &&
+        state.applicantView === "reservations" &&
+        state.identity.solicitanteId
+      ) {
+        const reservations =
+          await window.ReservationApi.listApplicantReservations(
+            state.identity.solicitanteId,
+          );
+        if (sequence !== refreshSequence) {
+          return;
+        }
+        if (!Array.isArray(reservations)) {
+          throw new window.ReservationApi.ApiError(
+            "A API retornou uma lista de reservas inválida.",
+          );
+        }
+        state.reservations = reservations;
+      } else {
+        state.reservations = [];
+      }
+    } catch (error) {
+      if (sequence === refreshSequence) {
+        if (error instanceof window.ReservationApi.ApiError && error.status === 401) {
+          encerrarSessao();
+          loginError.textContent = "Sua sessão expirou. Entre novamente.";
+          return;
+        }
+        console.error("Falha ao sincronizar com a API de reservas.", error);
+        state.apiError =
+          error instanceof window.ReservationApi.ApiError
+            ? error.message
+            : "Ocorreu um erro inesperado ao consultar o servidor.";
+      }
+    } finally {
+      if (sequence === refreshSequence) {
+        state.loading = false;
+        render();
+      }
+    }
+  };
+
+  const showApiError = (error) => {
+    console.error("Falha em operação da API de reservas.", error);
+    showToast(
+      error instanceof window.ReservationApi.ApiError
+        ? error.message
+        : "Ocorreu um erro inesperado ao executar a operação.",
+      true,
+    );
   };
 
   const openReservationDialog = (roomId, reservationId = null) => {
@@ -595,6 +741,13 @@
     setDialogDateDefaults();
 
     const isEditing = Boolean(reservation);
+    const professorField = document.getElementById("professor-allocation-field");
+    const materialField = document.getElementById("reservation-materials").closest(".field");
+    professorField.hidden =
+      isEditing || state.identity.tipoSolicitante === "PROFESSOR";
+    materialField.hidden = isEditing;
+    preencherOpcoesRecursos("reservation-professors", state.professors);
+    preencherOpcoesRecursos("reservation-materials", state.materials);
     document.getElementById("dialog-title").textContent = isEditing
       ? "Alterar data da reserva"
       : "Nova solicitação";
@@ -606,16 +759,28 @@
       : "Enviar solicitação";
 
     if (reservation) {
+      if (reservation.status !== RESERVATION_STATUS.REQUESTED) {
+        showToast("Somente reservas solicitadas podem ter o horário alterado.", true);
+        return;
+      }
       document.getElementById("start-date").value = reservation.inicio.slice(0, 10);
       document.getElementById("start-time").value = formatTime(reservation.inicio);
       document.getElementById("end-date").value = reservation.fim.slice(0, 10);
       document.getElementById("end-time").value = formatTime(reservation.fim);
+      const professorIds = new Set((reservation.professorIds || []).map(Number));
+      const materialIds = new Set((reservation.materialIds || []).map(Number));
+      for (const option of document.getElementById("reservation-professors").options) {
+        option.selected = professorIds.has(Number(option.value));
+      }
+      for (const option of document.getElementById("reservation-materials").options) {
+        option.selected = materialIds.has(Number(option.value));
+      }
     }
 
     dialog.showModal();
   };
 
-  const handleReservationSubmit = (event) => {
+  const handleReservationSubmit = async (event) => {
     event.preventDefault();
     formError.textContent = "";
     const reservationId = document.getElementById("reservation-id").value;
@@ -637,96 +802,100 @@
       return;
     }
 
-    const conflict = window.ReservationRules.hasScheduleConflict(
-      state.reservations,
-      roomId,
-      nextStart,
-      nextEnd,
-      reservationId,
-    );
-
-    if (conflict) {
-      formError.textContent = "O horário informado conflita com outra reserva desta sala.";
-      return;
-    }
-
-    if (reservationId) {
-      const reservation = getReservation(reservationId);
-      if (!reservation || !ACTIVE_RESERVATION_STATUSES.has(reservation.status)) {
-        formError.textContent = "Esta reserva não pode mais ser alterada.";
-        return;
+    const submitButton = document.getElementById("reservation-submit");
+    submitButton.disabled = true;
+    try {
+      if (reservationId) {
+        await window.ReservationApi.changeSchedule(reservationId, {
+          solicitanteId: Number(state.identity.solicitanteId),
+          inicio: nextStart,
+          fim: nextEnd,
+        });
+      } else {
+        const professorIds = Array.from(
+          document.getElementById("reservation-professors").selectedOptions,
+          (option) => Number(option.value),
+        );
+        const materialIds = Array.from(
+          document.getElementById("reservation-materials").selectedOptions,
+          (option) => Number(option.value),
+        );
+        await window.ReservationApi.createReservation({
+          salaId: roomId,
+          solicitanteId: Number(state.identity.solicitanteId),
+          tipoSolicitante: state.identity.tipoSolicitante,
+          inicio: nextStart,
+          fim: nextEnd,
+          professorIds,
+          materialIds,
+        });
       }
-      reservation.inicio = nextStart;
-      reservation.fim = nextEnd;
-      showToast("Data e horário da reserva atualizados.");
-    } else {
-      const newId = `RSV-${Date.now().toString().slice(-6)}`;
-      state.reservations.unshift({
-        id: newId,
-        salaId: roomId,
-        solicitante: "Você",
-        inicio: nextStart,
-        fim: nextEnd,
-        status: RESERVATION_STATUS.REQUESTED,
-      });
-      room.statusSala = ROOM_STATUS.RESERVED;
-      showToast(`Solicitação enviada para análise: Sala ${room.id}.`);
+      dialog.close();
+      if (!reservationId) {
+        state.applicantView = "reservations";
+      }
+      showToast(
+        reservationId
+          ? "Data e horário da reserva atualizados."
+          : `Solicitação enviada para análise: Sala ${room.id}.`,
+      );
+      await refreshData();
+    } catch (error) {
+      formError.textContent =
+        error instanceof window.ReservationApi.ApiError
+          ? error.message
+          : "Ocorreu um erro inesperado ao salvar a reserva.";
+      console.error("Falha ao salvar reserva.", error);
+    } finally {
+      submitButton.disabled = false;
     }
-
-    dialog.close();
-    render();
   };
 
-  const handleReservationDecision = (reservationId, decision) => {
-    const reservation = getReservation(reservationId);
-    const room = reservation ? getRoom(reservation.salaId) : null;
-    if (!window.ReservationRules.decideReservation(reservation, decision, room)) {
-      showToast("A solicitação não está disponível para decisão.", true);
-      return;
+  const handleReservationDecision = async (reservationId, decision) => {
+    const isResponsible = state.profile === "responsavel";
+    const userId = isResponsible
+      ? state.identity.responsavelId
+      : state.identity.administradorId;
+    const tipoAprovador = isResponsible ? "RESPONSAVEL" : "ADMINISTRADOR";
+    try {
+      await window.ReservationApi.decideReservation(
+        reservationId,
+        Number(userId),
+        tipoAprovador,
+        decision === RESERVATION_STATUS.APPROVED ? "aprovacao" : "rejeicao",
+      );
+      showToast(
+        decision === RESERVATION_STATUS.APPROVED
+          ? `Solicitação ${reservationId} aprovada.`
+          : `Solicitação ${reservationId} rejeitada.`,
+      );
+      await refreshData();
+    } catch (error) {
+      showApiError(error);
     }
-    updateRoomAvailability(reservation.salaId);
-    showToast(
-      decision === RESERVATION_STATUS.APPROVED
-        ? `Solicitação ${reservation.id} aprovada.`
-        : `Solicitação ${reservation.id} rejeitada.`,
-    );
-    render();
   };
 
-  const cancelReservation = (reservationId) => {
+  const cancelReservation = async (reservationId) => {
     const reservation = getReservation(reservationId);
-    if (!window.ReservationRules.cancelReservation(reservation)) {
+    if (
+      !reservation ||
+      ![RESERVATION_STATUS.REQUESTED, RESERVATION_STATUS.APPROVED].includes(
+        reservation.status,
+      )
+    ) {
       showToast("Esta reserva não pode mais ser cancelada.", true);
       return;
     }
-    updateRoomAvailability(reservation.salaId);
-    showToast(`Reserva ${reservation.id} cancelada.`);
-    render();
-  };
-
-  const saveRoom = (form) => {
-    const roomId = Number(form.dataset.adminRoom);
-    const room = getRoom(roomId);
-    const formData = new FormData(form);
-    const capacity = Number(formData.get("capacidade"));
-    const status = String(formData.get("statusSala"));
-    if (!room || !Number.isInteger(capacity) || capacity < 20) {
-      showToast("A capacidade deve ser um número inteiro de pelo menos 20 pessoas.", true);
-      return;
+    try {
+      await window.ReservationApi.cancelReservation(
+        reservationId,
+        Number(state.identity.solicitanteId),
+      );
+      showToast(`Reserva ${reservationId} cancelada.`);
+      await refreshData();
+    } catch (error) {
+      showApiError(error);
     }
-    if (!window.ReservationRules.isRoomStatus(status)) {
-      showToast("Selecione um estado válido para a sala.", true);
-      return;
-    }
-
-    room.capacidade = capacity;
-    room.statusSala = status;
-    showToast(
-      status === ROOM_STATUS.MAINTENANCE
-        ? `Sala ${room.id} em manutenção. Novas solicitações estão bloqueadas.`
-        : `Alterações da Sala ${room.id} salvas.`,
-    );
-    render();
   };
 
   document.querySelectorAll("[data-profile]").forEach((button) => {
@@ -742,6 +911,7 @@
     if (applicantTab) {
       state.applicantView = applicantTab.dataset.applicantView;
       render();
+      void refreshData();
       return;
     }
     const roomFilter = target.closest("[data-room-filter]");
@@ -772,6 +942,13 @@
     } else if (action === "show-rooms") {
       state.applicantView = "rooms";
       render();
+      void refreshData();
+    }
+  });
+
+  connectionStatus.addEventListener("click", (event) => {
+    if (event.target instanceof Element && event.target.id === "retry-api") {
+      void refreshData();
     }
   });
 
@@ -780,14 +957,6 @@
     if (target instanceof HTMLInputElement && target.id === "room-search") {
       state.searchTerm = target.value;
       renderRoomGrid();
-    }
-  });
-
-  content.addEventListener("submit", (event) => {
-    const target = event.target;
-    if (target instanceof HTMLFormElement && target.matches("[data-admin-room]")) {
-      event.preventDefault();
-      saveRoom(target);
     }
   });
 
@@ -800,11 +969,24 @@
       dialog.close();
     }
   });
-
   todayLabel.textContent = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "long",
     year: "numeric",
   }).format(new Date());
 
+  const restoreSession = async () => {
+    try {
+      const user = await window.ReservationApi.currentUser();
+      abrirAplicacao(user);
+    } catch (error) {
+      if (!(error instanceof window.ReservationApi.ApiError && error.status === 401)) {
+        loginError.textContent =
+          error instanceof window.ReservationApi.ApiError
+            ? error.message
+            : "Não foi possível verificar a sessão.";
+      }
+    }
+  };
+  void restoreSession();
 })();
