@@ -33,6 +33,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import static org.hamcrest.Matchers.startsWith;
@@ -105,7 +106,7 @@ class ReservaControllerTest {
     @Test
     void buscarReservaRetornaReservaEncontrada() throws Exception {
         when(reservaService.buscarReserva(RESERVA_ID))
-                .thenReturn(reserva(StatusReserva.APROVADA));
+                .thenReturn(Optional.of(reserva(StatusReserva.APROVADA)));
 
         mockMvc.perform(get("/api/reservas/{reservaId}", RESERVA_ID))
                 .andExpect(status().isOk())

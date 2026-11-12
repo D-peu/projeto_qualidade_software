@@ -7,6 +7,7 @@ import br.com.projeto_qualidade_software.projeto.api.dto.ReservaResponse;
 import br.com.projeto_qualidade_software.projeto.api.dto.SolicitarReservaRequest;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,7 +48,8 @@ public class ReservaController {
 
     @GetMapping("/{reservaId}")
     public ReservaResponse buscar(@PathVariable Long reservaId) {
-        return ReservaResponse.de(reservaService.buscarReserva(reservaId));
+        return ReservaResponse.de(reservaService.buscarReserva(reservaId)
+                .orElseThrow(() -> new EntityNotFoundException("Reserva não encontrada.")));
     }
 
     @GetMapping("/solicitante/{solicitanteId}")
