@@ -2,80 +2,49 @@ package br.com.projeto_qualidade_software.projeto.repositories;
 
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
-import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
+    @Query("select reserva.sala.id from Reserva reserva where reserva.id = :reservaId")
+    Optional<Long> findSalaIdByReservaId(@Param("reservaId") Long reservaId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select r from Reserva r where r.id = :id")
-    Optional<Reserva> buscarPorIdComBloqueio(@Param("id") Long id);
+    @Query("select reserva from Reserva reserva where reserva.sala.id = :salaId order by reserva.id")
+    List<Reserva> findAllBySalaIdForUpdate(@Param("salaId") Long salaId);
 
-    @EntityGraph(attributePaths = {"professores", "materiais"})
-    Optional<Reserva> findById(Long id);
-
+    @Modifying(flushAutomatically = true)
     @Query("""
-            select count(r) from Reserva r
-            where r.sala.id = :salaId
-              and r.status in :status
-              and r.inicio < :fim
-              and r.fim > :inicio
-              and (:reservaId is null or r.id <> :reservaId)
+            update Reserva reserva
+            set reserva.inicio = :inicio, reserva.fim = :fim
+            where reserva.id = :reservaId and reserva.status = :status
             """)
-    long contarConflitos(
-            @Param("salaId") Long salaId,
-            @Param("status") Collection<StatusReserva> status,
+    int atualizarHorarioAprovado(
+            @Param("reservaId") Long reservaId,
+            @Param("status") StatusReserva status,
             @Param("inicio") LocalDateTime inicio,
-            @Param("fim") LocalDateTime fim,
-            @Param("reservaId") Long reservaId
+            @Param("fim") LocalDateTime fim
     );
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
-            select count(distinct r) from Reserva r
-            join r.professores p
-            where p.id = :professorId
-              and r.status in :status
-              and r.inicio < :fim
-              and r.fim > :inicio
-              and (:reservaId is null or r.id <> :reservaId)
+            update Reserva reserva
+            set reserva.status = :expirada
+            where reserva.status = :solicitada
+              and reserva.inicio <= :instante
             """)
-    long contarConflitosPorProfessor(
-            @Param("professorId") Long professorId,
-            @Param("status") Collection<StatusReserva> status,
-            @Param("inicio") LocalDateTime inicio,
-            @Param("fim") LocalDateTime fim,
-            @Param("reservaId") Long reservaId
+    int expirarSolicitacoesAte(
+            @Param("instante") LocalDateTime instante,
+            @Param("solicitada") StatusReserva solicitada,
+            @Param("expirada") StatusReserva expirada
     );
-
-    @Query("""
-            select count(distinct r) from Reserva r
-            join r.materiais m
-            where m.id = :materialId
-              and r.status in :status
-              and r.inicio < :fim
-              and r.fim > :inicio
-              and (:reservaId is null or r.id <> :reservaId)
-            """)
-    long contarConflitosPorMaterial(
-            @Param("materialId") Long materialId,
-            @Param("status") Collection<StatusReserva> status,
-            @Param("inicio") LocalDateTime inicio,
-            @Param("fim") LocalDateTime fim,
-            @Param("reservaId") Long reservaId
-    );
-
-    @EntityGraph(attributePaths = {"professores", "materiais"})
-    List<Reserva> findBySolicitanteIdOrderByInicioDesc(Long solicitanteId);
-
-    @EntityGraph(attributePaths = {"professores", "materiais"})
-    List<Reserva> findByStatusOrderBySolicitadoEmAsc(StatusReserva status);
 }
