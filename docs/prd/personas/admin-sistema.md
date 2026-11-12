@@ -23,6 +23,7 @@ Perfil responsavel pela administracao dos cadastros e da disponibilidade dos rec
 ## Regras de Negocio
 
 - **RN04 - Indisponibilidade:** recursos bloqueados ou em manutencao nao podem receber novas reservas.
+- **RN05 - Aprovacao:** reservas e alteracoes de data/horario dependem do Responsavel; Administrador nao aprova.
 - **RN07 - Auditoria:** mudancas de estado e alteracoes relevantes devem ser registradas.
 
 ## Permissoes
@@ -50,4 +51,4 @@ O Administrador autentica-se com a própria conta e pode decidir reservas; a ses
 
 - Se existe mais de um nivel de Administrador.
 - Quais operacoes de usuario sao permitidas (criar, editar, ativar/desativar ou excluir).
-- Como manutencao e bloqueios afetam reservas ja aprovadas.
+- Manutencao bloqueia novas reservas, preserva registros existentes e alerta o Responsavel para avaliar cada caso.

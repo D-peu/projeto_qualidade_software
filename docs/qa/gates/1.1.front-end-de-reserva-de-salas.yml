@@ -1,0 +1,55 @@
+schema: 1
+story: '1.1'
+story_title: 'Front-end de reservas de salas'
+gate: FAIL
+status_reason: 'AC1 is inconsistent with the mandatory login flow, and date/time changes are applied immediately despite the approved requirement for Responsavel approval. These requirement and business-rule conflicts must be resolved before the story can pass review.'
+reviewer: 'Aria (Architect)'
+reviewed_revision: 'sha256:6c5e6aa47658bac2c38b4a56aa1f8b70c8801392f2ee7b339e23aae9bb368e39'
+updated: '2026-11-11T23:22:08.537Z'
+top_issues:
+  - id: 'REQ-001'
+    severity: high
+    finding: 'AC1 says profile access requires no authentication, but the implemented UI requires the login form before the user can access any profile. This also conflicts with the requested demonstration login, so the accepted scope must be reconciled.'
+    suggested_action: 'Product Owner: clarify and update AC1 to match the intended demonstration login, or ask Dev to remove the login flow if AC1 remains authoritative.'
+    suggested_owner: po
+  - id: 'REQ-002'
+    severity: high
+    finding: 'The edit handler immediately overwrites a reservation start/end time. Current RF10 and RN10 require date/time changes to be submitted as a pending request, require Responsavel approval, and preserve the original reservation until approval.'
+    suggested_action: 'Dev: implement a pending change request with approval and preserve the original interval until approval; validate the interaction against RF10/RN10.'
+    suggested_owner: dev
+  - id: 'TEST-001'
+    severity: medium
+    finding: 'The 11 passing Node.js tests cover rules and static contracts but do not exercise the rendered browser flows, responsive behavior, or keyboard accessibility required by the story.'
+    suggested_action: 'Dev: add browser-level checks for profile access, reservation creation/edit/decision, maintenance blocking, responsive layout, and keyboard operation.'
+    suggested_owner: dev
+waiver:
+  active: false
+quality_score: 60
+evidence:
+  tests_reviewed: 11
+  risks_identified: 3
+  trace:
+    ac_covered: [2, 3, 5, 7, 9]
+    ac_gaps: [1, 4, 6, 8]
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Credentials and role checks are client-side demonstrations only; no server authentication or authorization exists, as expected for the prototype.'
+  performance:
+    status: CONCERNS
+    notes: 'No browser performance, backend response-time, or load-test evidence was produced.'
+  reliability:
+    status: FAIL
+    notes: 'Date/time edits bypass the current approval rule and replace the active interval immediately.'
+  maintainability:
+    status: CONCERNS
+    notes: 'Rule helpers are separated and tests pass, but there is no browser-level regression suite for the UI behavior.'
+recommendations:
+  immediate:
+    - action: 'Resolve AC1 with the Product Owner and align the story and UI behavior.'
+      refs: ['docs/stories/1.1.front-end-reserva-de-salas.story.md', 'src/main/resources/static/index.html', 'src/main/resources/static/js/app.js']
+    - action: 'Implement approval of reservation date/time changes in accordance with RF10/RN10.'
+      refs: ['docs/prd/requisitos-funcionais.md', 'src/main/resources/static/js/app.js']
+  future:
+    - action: 'Add browser-level checks for UI interactions and accessibility criteria.'
+      refs: ['tests/frontend-contract.test.js']
