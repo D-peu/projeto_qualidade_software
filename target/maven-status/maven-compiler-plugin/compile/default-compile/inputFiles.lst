@@ -1,0 +1,10 @@
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/ProjetoQualidadeSoftwareApplication.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/entities/Reserva.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/entities/Responsavel.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/entities/Sala.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/entities/Solicitante.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/enums/StatusReserva.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/enums/StatusSala.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/enums/TipoSolicitante.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/repositories/ReservaRepository.java
+/workspaces/projeto_qualidade_software/src/main/java/br/com/projeto_qualidade_software/projeto/services/ReservaService.java
