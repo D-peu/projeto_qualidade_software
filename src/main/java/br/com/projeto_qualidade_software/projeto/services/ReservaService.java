@@ -478,6 +478,11 @@ public class ReservaService {
 
     private Reserva aprovarPorAdministrador(Long reservaId, Administrador administrador) {
         Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
+        if (reserva.getMateriais().stream().anyMatch(Material::isRestrito)) {
+            throw new AcessoNegadoException(
+                    "Somente Responsável pode aprovar reservas que contenham materiais restritos."
+            );
+        }
         StatusReserva anterior = reserva.getStatus();
         Sala sala = bloquearRecursosDaReserva(reserva);
         if (sala.getStatusSala() != StatusSala.DISPONIVEL) {
