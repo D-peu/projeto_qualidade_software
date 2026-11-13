@@ -95,7 +95,7 @@ class ReservaPostgresIntegrationTest {
                     .withUsername("test")
                     .withPassword("test")
                     .waitingFor(Wait.forSuccessfulCommand(
-                            "pg_isready -U test -d reservas_test"
+                            "pg_isready -h 127.0.0.1 -U test -d reservas_test"
                     ).withStartupTimeout(Duration.ofSeconds(60)));
 
     @Autowired
