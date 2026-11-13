@@ -4,7 +4,7 @@
 **Data da consolidação:** 2026-11-13
 **Escopo:** requisitos RF01–RF19 e RNF-ISO-01–RNF-ISO-09 dos documentos do PRD.
 **Revisão funcional de referência:** `4cb9799580aec8cb28f859745b2537ea7a19af10` (snapshot de `main` anterior ao PR #13).
-**Revisão de `main` auditada:** `3d9b5fdd7468bf8d07c784965d790e897279c093`. As correções estão na branch `release/rc1-blocker-fixes`; a CI do PR #20 passou no commit `d7039d5c622ed4d072530f7456f5427f107b8710`, mas ainda não houve revisão independente nem merge. Esse resultado não é evidência de `main`.
+**Revisão de `main` auditada:** `3d9b5fdd7468bf8d07c784965d790e897279c093`. As correções estão na branch `release/rc1-blocker-fixes`; a CI do PR #20 passou no commit `86d4894c0fdfd7153c7c1e65b69f6f5fa62ff8cc`, mas ainda não houve revisão independente nem merge. Esse resultado não é evidência de `main`.
 
 Esta matriz registra o estado identificado no repositório e nas evidências de execução disponíveis. A inclusão de um requisito, cenário ou teste nesta tabela não significa que o requisito esteja integralmente implementado, validado ou aprovado.
 

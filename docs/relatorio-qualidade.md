@@ -1,7 +1,7 @@
 # Relatorio de qualidade
 
 **Data:** 2026-11-13  
-**Escopo:** verificacao local e CI do PR #20 na branch `release/rc1-blocker-fixes`. A CI citada validou o commit `d7039d5c622ed4d072530f7456f5427f107b8710`; o documento nao representa revisao por pares, CI na `main` ou liberacao de producao.
+**Escopo:** verificacao local e CI do PR #20 na branch `release/rc1-blocker-fixes`. A CI citada validou o commit `86d4894c0fdfd7153c7c1e65b69f6f5fa62ff8cc`; o documento nao representa revisao por pares, CI na `main` ou liberacao de producao.
 
 ## Evidencias executadas
 
@@ -14,7 +14,7 @@
 | JMeter | Baseline local de 13/11 em [resultado-01.md](performance/resultado-01.md): consultas 35.225 (p95 26 ms), criacao 7.702 (p95 112 ms), contencao 1 `201` e 49 `409` esperados. JTL compactados versionados. |
 | Autorizacao de aprovacao | A API recusa Administrador ao aprovar, inclusive reserva sem material restrito; teste HTTP autenticado com CSRF e PostgreSQL confirma HTTP 403 e ausencia de transicao. |
 | WireMock | Os testes de integracao de notificacao executaram dentro de `verify`; isso comprova o cliente HTTP atual, nao conformidade com o requisito de simulacao interna descrito abaixo. |
-| CI do PR #20 | [Execucao 43527466987](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43527466987), no commit `d7039d5c622ed4d072530f7456f5427f107b8710`: sucesso; artifact `test-reports-43527466987-1` publicado. A etapa SonarCloud foi ignorada. |
+| CI do PR #20 | [Execucao 43527836793](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43527836793), no commit `86d4894c0fdfd7153c7c1e65b69f6f5fa62ff8cc`: sucesso; artifact `test-reports-43527836793-1` publicado. A etapa SonarCloud foi ignorada. |
 | `git diff --check` | Sem erros de whitespace. |
 
 ## Resultado por risco critico
@@ -37,7 +37,7 @@ O resultado dos testes nao significa que todos os requisitos estejam completos:
 - **RF17-RF18:** validacao visual/acessibilidade em navegador e verificacao automatizada de conformidade OpenAPI permanecem pendentes.
 - **RF19/RN11:** o codigo envia notificacoes por HTTP e tem testes WireMock, mas o PRD vigente exige notificacoes simuladas dentro do sistema, sem integracao externa. A implementacao esta divergente e nao deve ser declarada conforme ate a equipe decidir ou substituir o fluxo.
 - **Desempenho:** a nova medicao e local, exploratoria, usa 10 usuarios/60 segundos e nao representa producao. `APP_AUTH_ENABLED=false` foi usado apenas no ambiente descartavel; o resultado nao e evidencia de autorizacao. Metas de desempenho oficiais nao foram aprovadas.
-- **CI/SonarCloud:** a CI do PR #20 passou no commit `d7039d5`; a etapa SonarCloud foi ignorada, sem Quality Gate. A CI do commit integrado na `main` ainda esta pendente.
+- **CI/SonarCloud:** a CI do PR #20 passou no commit `86d4894`; a etapa SonarCloud foi ignorada, sem Quality Gate. A CI do commit integrado na `main` ainda esta pendente.
 
 ## Decisao
 
