@@ -478,7 +478,7 @@ public class ReservaService {
 
     private Reserva aprovarPorAdministrador(Long reservaId, Administrador administrador) {
         Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
-        if (reserva.getMateriais().stream().anyMatch(Material::isRestrito)) {
+        if (possuiMaterialRestrito(reserva)) {
             throw new AcessoNegadoException(
                     "Somente Responsável pode aprovar reservas que contenham materiais restritos."
             );
@@ -510,6 +510,10 @@ public class ReservaService {
                 PerfilUsuario.ADMINISTRADOR
         );
         return aprovada;
+    }
+
+    private boolean possuiMaterialRestrito(Reserva reserva) {
+        return reserva.getMateriais().stream().anyMatch(Material::isRestrito);
     }
 
     private Reserva transicionarReserva(
