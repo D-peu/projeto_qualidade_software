@@ -1,7 +1,7 @@
 # API de Reservas
 
-**Status:** Implementacao inicial
-**Versao do contrato:** 1.2.0
+**Status:** Implementacao parcial, com cadastro básico de salas, alteração de estado, filtros de catálogo e consulta de histórico
+**Versao do contrato:** 1.3.0
 **Contrato OpenAPI:** [openapi.yaml](openapi.yaml)
 
 ## Escopo
@@ -19,13 +19,15 @@ Esta API implementa apenas parte das regras previstas no PRD. O comportamento ob
 | RN01 - Intervalo | Implementada: o início deve estar no futuro segundo o relógio de `America/Sao_Paulo`; início e término devem estar nos minutos 00 ou 30, com segundos e nanos zerados; o término deve ser posterior ao início. |
 | RN02 - Conflito de horario | Implementada para sala, docentes associados e materiais associados. Intervalos adjacentes sao aceitos. |
 | RN03 - Concorrencia | Implementada para sala, docente e material: o serviço bloqueia os registros dos recursos em ordem determinística antes de verificar conflitos; testes PostgreSQL cobrem solicitações concorrentes em salas distintas que disputam o mesmo docente/material. |
-| RN04 - Bloqueio/manutencao | Parcial: a sala so e aceita quando `DISPONIVEL`; nao existem bloqueios por periodo nem gestao administrativa desses estados. |
-| RN05 - Aprovacao restrita | Parcial: a decisao aceita somente `RESPONSAVEL` ou `ADMINISTRADOR` e exige ID existente no cadastro correspondente. Ainda nao ha classificacao de recurso restrito para exigir aprovacao somente nesses casos. |
-| RN06 - Ciclo de estados | Parcial: além das decisões e cancelamento, há operações `APROVADA` → `EM_USO` → `CONCLUIDA` e `APROVADA` → `NAO_COMPARECEU`. Início só ocorre em `[inicio, fim)`; ausência só a partir de `fim`; conclusão pode ocorrer a qualquer momento em `EM_USO`. A expiração automática de `SOLICITADA` e as alterações pendentes descritas no PRD ainda não estão implementadas. |
-| RN07 - Proteção e auditoria | Parcial: a criação e mudanças de estado gravam auditoria transacional com estado anterior/novo, ator, perfil e data/hora; não há rota de exclusão nem consulta pública do histórico. Alterações de horário ainda não são auditadas. |
+| RN04 - Bloqueio/manutencao | Parcial: Administrador pode alterar o estado operacional da sala; `EM_MANUTENCAO` impede novas solicitações e aprovações. Ainda não há bloqueios por período ou alerta automático ao Responsável. |
+| RN05 - Aprovacao | Parcial: toda reserva nova só pode ser aprovada por Responsável, independentemente dos recursos; Administrador recebe 403. A aprovação de alterações de horário ainda não tem fluxo próprio. |
+| RN06 - Ciclo de estados | Parcial: as transições operacionais estão disponíveis e solicitações não decididas até o início expiram para `EXPIRADA`. A expiração é aplicada ao consultar reservas; alterações pendentes e sua expiração ainda não estão implementadas. |
+| RN07 - Proteção e auditoria | Parcial: criação, decisões, cancelamento e transições registram auditoria transacional com ator/perfil e data/hora; consultas de auditoria e histórico de alteração de horário são restritas à equipe. Alterações diretas de horário enquanto a reserva está solicitada ainda não geram um evento de auditoria. |
 | RN08 - Materiais | Parcial: materiais podem ser associados a reservas e têm consulta de catálogo. Retirada e devolução ainda não são registradas. |
 
-Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`), e o backend exige correspondencia com a conta autenticada. Aprovacao/rejeicao exige perfil autenticado de `RESPONSAVEL` ou `ADMINISTRADOR`; o ID e o tipo enviados no payload precisam corresponder a essa conta. Solicitantes so consultam e alteram suas proprias reservas; filas de aprovacao sao restritas a Responsavel e Administrador.
+| RF19 / RN11 - Notificações | Parcial e divergente do PRD: o backend envia eventos de aprovação, rejeição e cancelamento por HTTP e a integração é testada com WireMock; o PRD vigente pede notificações simuladas dentro da aplicação, sem serviço externo. |
+
+Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`), e o backend exige correspondencia com a conta autenticada. Aprovar exige perfil `RESPONSAVEL`; Administrador recebe `403 Forbidden`, mesmo em reservas sem recurso restrito. Rejeitar aceita Responsável ou Administrador. O ID e o tipo enviados no payload precisam corresponder à conta autenticada. Solicitantes só consultam e alteram suas próprias reservas; filas de decisão são restritas a Responsável e Administrador.
 
 Nas operações operacionais, `ADMINISTRADOR` pode atuar em qualquer reserva. `RESPONSAVEL` pode atuar apenas quando seu ID autenticado corresponde a `Reserva.responsavel`; assim, quem aprova como Responsável também assume a responsabilidade operacional. `SOLICITANTE` não pode iniciar, concluir ou registrar ausência. Essas três rotas não recebem ID de usuário: identidade e perfil vêm exclusivamente da sessão autenticada.
 
@@ -39,13 +41,16 @@ Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor 
 | `POST` | `/api/auth/login` | Autenticar e iniciar sessão HTTP | `200 OK` |
 | `GET` | `/api/auth/me` | Consultar conta da sessão atual | `200 OK` |
 | `POST` | `/api/auth/logout` | Encerrar a sessão atual | `204 No Content` |
-| `GET` | `/api/salas` | Listar salas cadastradas | `200 OK` |
+| `GET` | `/api/salas?status=DISPONIVEL&capacidadeMinima=30` | Listar/filtrar salas por estado e capacidade mínima | `200 OK` |
 | `POST` | `/api/salas` | Cadastrar sala (somente Administrador) | `201 Created` |
+| `PUT` | `/api/salas/{salaId}/status` | Alterar estado operacional (somente Administrador) | `200 OK` |
 | `GET` | `/api/professores` | Listar docentes cadastrados para alocação (somente ID e nome) | `200 OK` |
 | `GET` | `/api/materiais` | Listar materiais cadastrados para alocação | `200 OK` |
 | `GET` | `/api/reservas?status=SOLICITADA` | Listar reservas pelo estado | `200 OK` |
 | `POST` | `/api/reservas` | Solicitar reserva | `201 Created` |
 | `GET` | `/api/reservas/{reservaId}` | Consultar reserva | `200 OK` |
+| `GET` | `/api/reservas/{reservaId}/auditoria` | Consultar eventos de estado (equipe) | `200 OK` |
+| `GET` | `/api/reservas/{reservaId}/historico-horario` | Consultar alterações aplicadas de horário (equipe) | `200 OK` |
 | `GET` | `/api/reservas/solicitante/{solicitanteId}` | Listar reservas do solicitante | `200 OK` |
 | `GET` | `/api/reservas/pendentes` | Listar reservas `SOLICITADA`, ordenadas por data da solicitação crescente | `200 OK` |
 | `PUT` | `/api/reservas/{reservaId}/horario` | Alterar horario enquanto solicitada | `200 OK` |
@@ -56,7 +61,7 @@ Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor 
 | `POST` | `/api/reservas/{reservaId}/concluir` | Concluir uma utilização em andamento | `200 OK` |
 | `POST` | `/api/reservas/{reservaId}/nao-comparecimento` | Registrar ausência a partir do fim reservado | `200 OK` |
 
-Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. O cadastro de salas exige perfil Administrador; outros perfis recebem `403 Forbidden`, e chamadas sem sessão recebem `401 Unauthorized`. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
+Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. O cadastro e a alteração de estado das salas exigem perfil Administrador; outros perfis recebem `403 Forbidden`, e chamadas sem sessão recebem `401 Unauthorized`. As consultas de auditoria e histórico de horário exigem perfil Responsável ou Administrador. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
 
 ### Contas de demonstração
 
@@ -104,6 +109,35 @@ Retorna `201 Created` com a representação persistida:
 ```
 
 Capacidade ausente ou inferior a 20 retorna `400 Bad Request`; sessão ausente retorna `401 Unauthorized`; perfil sem permissão retorna `403 Forbidden`. O catálogo `GET /api/salas` apresenta a nova sala nas consultas seguintes.
+
+### Filtrar salas
+
+`GET /api/salas` aceita os filtros opcionais `status` e `capacidadeMinima`. Por
+exemplo, `GET /api/salas?status=DISPONIVEL&capacidadeMinima=30` retorna salas
+disponíveis com capacidade mínima de 30 pessoas. Localização ainda não existe no
+modelo de sala, portanto esse filtro permanece pendente.
+
+### Marcar sala em manutenção
+
+Somente Administrador pode alterar o estado. As reservas já existentes são
+preservadas, mas novas solicitações e aprovações para a sala são recusadas
+enquanto ela estiver indisponível.
+
+```http
+PUT /api/salas/2/status
+Content-Type: application/json
+X-CSRF-Token: <token da sessão>
+
+{"statusSala":"EM_MANUTENCAO"}
+```
+
+### Consultar auditoria
+
+Responsável e Administrador podem consultar mudanças de estado e histórico
+imutável de alterações aplicadas ao horário por `GET
+/api/reservas/{reservaId}/auditoria` e `GET
+/api/reservas/{reservaId}/historico-horario`. Eventos automáticos de expiração
+usam `perfilUsuario: SISTEMA` e `usuarioId: null`.
 
 ## Exemplos
 
@@ -163,7 +197,7 @@ Aprovacao e rejeicao recebem o ID e o papel do aprovador. O ID deve existir no c
 }
 ```
 
-`tipoAprovador` aceita `RESPONSAVEL` ou `ADMINISTRADOR`. A resposta informa o decisor em `responsavelId` ou `administradorId`.
+`tipoAprovador` aceita `RESPONSAVEL` ou `ADMINISTRADOR` no corpo, mas a rota de aprovação aceita somente `RESPONSAVEL`; uma tentativa de aprovação por Administrador retorna `403`. A rota de rejeição aceita os dois perfis. A resposta informa o decisor em `responsavelId` ou `administradorId`.
 
 ### Iniciar, concluir ou registrar não comparecimento
 
@@ -192,7 +226,7 @@ O intervalo exige início estritamente futuro em `America/Sao_Paulo`, minutos `0
 
 O login usa sessão HTTP, cookies `HttpOnly` e `SameSite=Lax`, token CSRF em operações mutáveis, senhas PBKDF2 e autorização por perfil/posse da reserva. Configure `SESSION_COOKIE_SECURE=true` quando servir a aplicação por HTTPS. As contas seed são somente demonstração; cadastro/gestão de contas, recuperação de senha e autenticação institucional ainda não existem.
 
-O modelo permite verificar conflitos de sala, docentes e materiais; contas do tipo Professor são reutilizadas como docentes e materiais têm entidade própria. A expiração prevista em RF15/RN12, alterações pendentes aprovadas, classificação de recursos restritos, manutenção por período, CRUD administrativo e movimentação de materiais ainda dependem de regras e rotas ausentes. A auditoria atual cobre criação e mudanças de estado, não alterações de horário. O Hibernate atualiza o schema em desenvolvimento; ambientes existentes devem deixar essa atualização ser aplicada antes de usar as novas tabelas.
+O modelo permite verificar conflitos de sala, docentes e materiais; contas do tipo Professor são reutilizadas como docentes e materiais têm entidade própria. A classificação demonstrativa de materiais não altera a regra de aprovação. A expiração prevista em RF15/RN12, alterações pendentes aprovadas, manutenção por período, CRUD administrativo e movimentação de materiais ainda dependem de regras e rotas ausentes. A auditoria atual cobre criação e mudanças de estado, não alterações de horário. O Hibernate atualiza o schema em desenvolvimento; ambientes existentes devem deixar essa atualização ser aplicada antes de usar as novas tabelas.
 
 ## Referencias
 

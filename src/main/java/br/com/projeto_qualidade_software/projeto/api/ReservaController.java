@@ -1,6 +1,8 @@
 package br.com.projeto_qualidade_software.projeto.api;
 
 import br.com.projeto_qualidade_software.projeto.api.dto.AcaoReservaRequest;
+import br.com.projeto_qualidade_software.projeto.api.dto.AlteracaoHorarioResponse;
+import br.com.projeto_qualidade_software.projeto.api.dto.AuditoriaReservaResponse;
 import br.com.projeto_qualidade_software.projeto.api.dto.AlterarHorarioReservaRequest;
 import br.com.projeto_qualidade_software.projeto.api.dto.DecisaoReservaRequest;
 import br.com.projeto_qualidade_software.projeto.api.dto.ReservaResponse;
@@ -50,6 +52,22 @@ public class ReservaController {
     public ReservaResponse buscar(@PathVariable Long reservaId) {
         return ReservaResponse.de(reservaService.buscarReserva(reservaId)
                 .orElseThrow(() -> new EntityNotFoundException("Reserva não encontrada.")));
+    }
+
+    @GetMapping("/{reservaId}/auditoria")
+    public List<AuditoriaReservaResponse> consultarAuditoria(@PathVariable Long reservaId) {
+        return reservaService.consultarAuditoria(reservaId).stream()
+                .map(AuditoriaReservaResponse::de)
+                .toList();
+    }
+
+    @GetMapping("/{reservaId}/historico-horario")
+    public List<AlteracaoHorarioResponse> consultarHistoricoHorario(
+            @PathVariable Long reservaId
+    ) {
+        return reservaService.consultarHistorico(reservaId).stream()
+                .map(AlteracaoHorarioResponse::de)
+                .toList();
     }
 
     @GetMapping("/solicitante/{solicitanteId}")

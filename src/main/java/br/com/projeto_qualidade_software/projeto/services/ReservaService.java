@@ -262,10 +262,12 @@ public class ReservaService {
             return aprovar(reservaId, buscarResponsavel(usuarioId));
         }
         if (tipoAprovador == TipoAprovadorReserva.ADMINISTRADOR) {
-            return aprovarPorAdministrador(reservaId, buscarAdministrador(usuarioId));
+            throw new AcessoNegadoException(
+                    "Somente Responsável pode aprovar reservas."
+            );
         }
         throw new AcessoNegadoException(
-                "Somente Responsável ou Administrador pode aprovar reservas."
+                "Somente Responsável pode aprovar reservas."
         );
     }
 
@@ -417,11 +419,21 @@ public class ReservaService {
 
     @Transactional(readOnly = true)
     public List<AlteracaoHorarioAplicada> consultarHistorico(Long reservaId) {
+        ContextoAutenticacao.exigirEquipe();
         if (!reservaRepository.existsById(reservaId)) {
             throw new EntityNotFoundException("Reserva não encontrada.");
         }
         return alteracaoHorarioAplicadaRepository
                 .findAllByReserva_IdOrderByAppliedAtAscIdAsc(reservaId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuditoriaReserva> consultarAuditoria(Long reservaId) {
+        ContextoAutenticacao.exigirEquipe();
+        if (!reservaRepository.existsById(reservaId)) {
+            throw new EntityNotFoundException("Reserva não encontrada.");
+        }
+        return auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(reservaId);
     }
 
     @Transactional
@@ -484,47 +496,6 @@ public class ReservaService {
         );
         notificarMudancaDeEstado(aprovada);
         return aprovada;
-    }
-
-    private Reserva aprovarPorAdministrador(Long reservaId, Administrador administrador) {
-        Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
-        if (possuiMaterialRestrito(reserva)) {
-            throw new AcessoNegadoException(
-                    "Somente Responsável pode aprovar reservas que contenham materiais restritos."
-            );
-        }
-        StatusReserva anterior = reserva.getStatus();
-        Sala sala = bloquearRecursosDaReserva(reserva);
-        if (sala.getStatusSala() != StatusSala.DISPONIVEL) {
-            throw new ReservaIndisponivelException(
-                    "O recurso ou horário não está mais disponível para esta reserva."
-            );
-        }
-        reservaRepository.findAllBySalaIdForUpdate(sala.getId());
-        validarAusenciaDeConflito(
-                sala.getId(),
-                idsProfessores(reserva),
-                idsMateriais(reserva),
-                reserva.getInicio(),
-                reserva.getFim(),
-                reserva.getId(),
-                STATUS_CONFIRMADOS
-        );
-        reserva.aprovar(administrador);
-        Reserva aprovada = reservaRepository.save(reserva);
-        registrarAuditoria(
-                aprovada,
-                anterior,
-                StatusReserva.APROVADA,
-                administrador.getId(),
-                PerfilUsuario.ADMINISTRADOR
-        );
-        notificarMudancaDeEstado(aprovada);
-        return aprovada;
-    }
-
-    private boolean possuiMaterialRestrito(Reserva reserva) {
-        return reserva.getMateriais().stream().anyMatch(Material::isRestrito);
     }
 
     private void notificarMudancaDeEstado(Reserva reserva) {
@@ -601,8 +572,9 @@ public class ReservaService {
             PerfilUsuario perfilPadrao
     ) {
         UsuarioAutenticado usuario = ContextoAutenticacao.usuarioAtual();
-        Long usuarioId = usuario == null ? usuarioIdPadrao : usuario.id();
-        PerfilUsuario perfil = usuario == null || usuario.perfil() == null
+        boolean eventoSistema = perfilPadrao == PerfilUsuario.SISTEMA;
+        Long usuarioId = eventoSistema || usuario == null ? usuarioIdPadrao : usuario.id();
+        PerfilUsuario perfil = eventoSistema || usuario == null || usuario.perfil() == null
                 ? perfilPadrao
                 : usuario.perfil();
         auditoriaReservaRepository.save(new AuditoriaReserva(
@@ -789,11 +761,21 @@ public class ReservaService {
     }
 
     private void expirarSolicitacoesVencidas() {
-        reservaRepository.expirarSolicitacoesAte(
+        List<Reserva> vencidas = reservaRepository.buscarSolicitacoesVencidasComBloqueio(
                 LocalDateTime.now(clock),
-                StatusReserva.SOLICITADA,
-                StatusReserva.EXPIRADA
+                StatusReserva.SOLICITADA
         );
+        for (Reserva reserva : vencidas) {
+            reserva.setStatus(StatusReserva.EXPIRADA);
+            Reserva expirada = reservaRepository.save(reserva);
+            registrarAuditoria(
+                    expirada,
+                    StatusReserva.SOLICITADA,
+                    StatusReserva.EXPIRADA,
+                    null,
+                    PerfilUsuario.SISTEMA
+            );
+        }
     }
 
     private boolean existeConflito(Reserva reserva, List<Reserva> reservasDaSala) {

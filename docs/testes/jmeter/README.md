@@ -2,7 +2,7 @@
 
 Este plano mede a API real de reservas usando JMeter 5.6.3, a aplicacao Spring Boot executada separadamente e PostgreSQL 16 dedicado. Nao use o banco de desenvolvimento nem um banco compartilhado.
 
-O relatório das execuções já realizadas está em [relatorio-desempenho.md](relatorio-desempenho.md). Os JTL e relatórios HTML correspondentes permanecem em `target/jmeter/`:
+O baseline local mais recente, com JTL compactados e versionados, está em [resultado-01.md](../../performance/resultado-01.md). Os resultados históricos de 11/11 estão descritos em [relatorio-desempenho.md](relatorio-desempenho.md); os JTL e relatórios HTML dessas execuções permanecem em `target/jmeter/` e não estão incluídos neste checkout:
 
 | Cenário | JTL | Relatório HTML | Uso na consolidação |
 |---|---|---|---|
@@ -52,8 +52,11 @@ $env:DB_URL = "jdbc:postgresql://localhost:5434/reservas_carga"
 $env:DB_USER = "reservas_carga"
 $env:DB_PASSWORD = "reservas_carga_local"
 $env:APP_SEED_ENABLED = "false"
+$env:APP_AUTH_ENABLED = "false"
 .\mvnw.cmd -B spring-boot:run
 ```
+
+`APP_AUTH_ENABLED=false` e exclusivo deste ambiente de carga descartavel: os planos nao autenticam sessoes. Isso nao e evidencia de autorizacao e nao deve ser aplicado a ambientes compartilhados ou de producao. Em execucoes normais, mantenha `APP_AUTH_ENABLED=true`.
 
 Espere a aplicacao estar pronta em `http://localhost:8080`. O Hibernate cria/atualiza o schema conforme a configuracao de desenvolvimento. Em outro terminal, aplique o SQL somente depois da inicializacao do schema:
 

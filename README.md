@@ -4,7 +4,7 @@ Sistema de alocação de salas, professores e materiais sem conflitos de horári
 
 ## Estado atual
 
-A API de reservas está implementada para salas, com alocação opcional de docentes/materiais e login por sessão HTTP. O Administrador pode cadastrar salas adicionais; edição/desativação e cadastro/gestão de outros recursos, bloqueios por período, auditoria, movimentação de materiais e relatórios permanecem pendentes. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
+A API de reservas está implementada para salas, com alocação opcional de docentes/materiais e login por sessão HTTP. O Administrador pode cadastrar salas adicionais; edição/desativação e cadastro/gestão de outros recursos, bloqueios por período, auditoria completa, movimentação de materiais e relatórios permanecem pendentes ou parciais. A situação de cada requisito está em [`docs/prd/requisitos-funcionais.md`](docs/prd/requisitos-funcionais.md), na seção "Situação da implementação atual".
 
 ## Pré-requisitos
 
@@ -19,7 +19,7 @@ docker compose up -d
 ./mvnw spring-boot:run
 ```
 
-A aplicação sobe em `http://localhost:8080`. A interface em `/` autentica contra as contas do banco usando sessão HTTP e limita as operações ao perfil autenticado. As credenciais de demonstração são apenas para desenvolvimento local; veja os limites em [`docs/api-reservas.md`](docs/api-reservas.md).
+A aplicação sobe em `http://localhost:8080`. Em um PostgreSQL vazio, o bootstrap do Flyway prepara as tabelas necessárias às migrations existentes; o restante do schema é atualizado pelo Hibernate. O caso CP-158 e o teste Testcontainers `AplicacaoBancoLimpoPostgresTest` verificam esse início limpo. A interface em `/` autentica contra as contas do banco usando sessão HTTP e limita as operações ao perfil autenticado. As credenciais de demonstração são apenas para desenvolvimento local; veja os limites em [`docs/api-reservas.md`](docs/api-reservas.md).
 
 Na primeira execução são criadas contas de demonstração, uma sala (30 lugares) e dois materiais ("Projetor multimídia" e "Notebook"):
 
@@ -103,6 +103,9 @@ Remove-Item Env:SONAR_TOKEN
 - [Estratégia de testes](docs/testes/estrategia.md)
 - [Inventário de regras e riscos](docs/testes/inventario-regras.md)
 - [Casos de caixa preta](docs/testes/caixa-preta.md) e [de caixa branca](docs/testes/caixa-branca.md)
+- [RTM](docs/rtm.md), [relatório de qualidade](docs/relatorio-qualidade.md) e [checklist de entrega](docs/entrega/checklist.md)
+- [Resultado de desempenho JMeter](docs/performance/resultado-01.md) e [registro de defeitos](docs/gestao-defeitos.md)
+- [Changelog](CHANGELOG.md)
 - [Registro do uso de IA](docs/ia/log-prompts.md)
 
 ## Estrutura

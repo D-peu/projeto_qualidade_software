@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: API de Reservas de Salas
-  version: 1.2.0
+  version: 1.3.0
   description: >-
     API para autenticar usuarios por sessao HTTP, cadastrar salas como
     Administrador e solicitar/acompanhamento de reservas de salas. Requisicoes
@@ -121,8 +121,20 @@ paths:
   /api/salas:
     get:
       tags: [Salas]
-      summary: Listar salas
+      summary: Listar e filtrar salas
       operationId: listarSalas
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/StatusSala'
+        - name: capacidadeMinima
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Salas cadastradas
@@ -167,6 +179,50 @@ paths:
           $ref: '#/components/responses/NaoAutenticado'
         '403':
           $ref: '#/components/responses/AcessoNegado'
+  /api/salas/{salaId}/status:
+    parameters:
+      - name: salaId
+        in: path
+        required: true
+        schema:
+          type: integer
+          format: int64
+          minimum: 1
+    put:
+      tags: [Salas]
+      summary: Alterar estado operacional de uma sala
+      description: Requer Administrador. Alterar para EM_MANUTENCAO impede novas solicitações e aprovações, sem remover reservas existentes.
+      operationId: alterarStatusSala
+      security:
+        - SessionCookie: []
+          CsrfToken: []
+      parameters:
+        - name: X-CSRF-Token
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlterarStatusSalaRequest'
+      responses:
+        '200':
+          description: Estado operacional atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Sala'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
   /api/professores:
     get:
       tags: [Recursos]
@@ -314,6 +370,52 @@ paths:
           $ref: '#/components/responses/NaoAutenticado'
         '403':
           $ref: '#/components/responses/AcessoNegado'
+  /api/reservas/{reservaId}/auditoria:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    get:
+      tags: [Reservas]
+      summary: Consultar eventos de estado da reserva
+      description: Disponível para Responsável ou Administrador; eventos automáticos usam perfil SISTEMA e usuarioId nulo.
+      operationId: consultarAuditoriaReserva
+      responses:
+        '200':
+          description: Eventos em ordem cronológica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AuditoriaReserva'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
+  /api/reservas/{reservaId}/historico-horario:
+    parameters:
+      - $ref: '#/components/parameters/ReservaId'
+    get:
+      tags: [Reservas]
+      summary: Consultar alterações aplicadas ao horário
+      description: Disponível para Responsável ou Administrador.
+      operationId: consultarHistoricoHorario
+      responses:
+        '200':
+          description: Alterações imutáveis em ordem cronológica
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AlteracaoHorarioAplicada'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
+        '404':
+          $ref: '#/components/responses/RecursoNaoEncontrado'
   /api/reservas/solicitante/{solicitanteId}:
     parameters:
       - name: solicitanteId
@@ -424,6 +526,7 @@ paths:
     post:
       tags: [Reservas]
       summary: Aprovar reserva solicitada
+      description: Somente Responsável pode aprovar, independentemente da classificação dos recursos. Administrador recebe 403.
       operationId: aprovarReserva
       security:
         - SessionCookie: []
@@ -691,8 +794,10 @@ components:
           type: integer
           minimum: 20
         statusSala:
-          type: string
-          enum: [DISPONIVEL, RESERVADA, EM_MANUTENCAO]
+          $ref: '#/components/schemas/StatusSala'
+    StatusSala:
+      type: string
+      enum: [DISPONIVEL, RESERVADA, EM_MANUTENCAO]
     CriarSalaRequest:
       type: object
       required: [capacidade]
@@ -701,6 +806,71 @@ components:
           type: integer
           minimum: 20
           description: Capacidade da sala em pessoas; mínimo de 20.
+    AlterarStatusSalaRequest:
+      type: object
+      required: [statusSala]
+      properties:
+        statusSala:
+          $ref: '#/components/schemas/StatusSala'
+    AuditoriaReserva:
+      type: object
+      required: [id, novoEstado, perfilUsuario, dataHora]
+      properties:
+        id:
+          type: integer
+          format: int64
+        estadoAnterior:
+          allOf:
+            - $ref: '#/components/schemas/StatusReserva'
+          nullable: true
+        novoEstado:
+          $ref: '#/components/schemas/StatusReserva'
+        usuarioId:
+          type: integer
+          format: int64
+          nullable: true
+        perfilUsuario:
+          type: string
+          enum: [SOLICITANTE, RESPONSAVEL, ADMINISTRADOR, SISTEMA]
+        dataHora:
+          type: string
+          format: date-time
+    AlteracaoHorarioAplicada:
+      type: object
+      required: [id, responsavelId, inicioAnterior, fimAnterior, novoInicio, novoFim, aplicadaEm]
+      properties:
+        id:
+          type: integer
+          format: int64
+        responsavelId:
+          type: integer
+          format: int64
+        inicioAnterior:
+          type: string
+          format: date-time
+        fimAnterior:
+          type: string
+          format: date-time
+        novoInicio:
+          type: string
+          format: date-time
+        novoFim:
+          type: string
+          format: date-time
+        aplicadaEm:
+          type: string
+          format: date-time
+    StatusReserva:
+      type: string
+      enum:
+        - SOLICITADA
+        - APROVADA
+        - EM_USO
+        - CONCLUIDA
+        - REJEITADA
+        - CANCELADA
+        - NAO_COMPARECEU
+        - EXPIRADA
     Professor:
       type: object
       required: [id, nome]
@@ -821,15 +991,7 @@ components:
           type: string
           format: date-time
         status:
-          type: string
-          enum:
-            - SOLICITADA
-            - APROVADA
-            - EM_USO
-            - CONCLUIDA
-            - REJEITADA
-            - CANCELADA
-            - NAO_COMPARECEU
+          $ref: '#/components/schemas/StatusReserva'
         solicitadoEm:
           type: string
           format: date-time

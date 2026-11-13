@@ -21,4 +21,15 @@ public interface SalaRepository extends JpaRepository<Sala, Long> {
             StatusSala statusSala,
             Integer capacidade
     );
+
+    @Query("""
+            select sala from Sala sala
+            where (:status is null or sala.statusSala = :status)
+              and (:capacidadeMinima is null or sala.capacidade >= :capacidadeMinima)
+            order by sala.capacidade asc, sala.id asc
+            """)
+    List<Sala> buscarPorFiltros(
+            @Param("status") StatusSala status,
+            @Param("capacidadeMinima") Integer capacidadeMinima
+    );
 }

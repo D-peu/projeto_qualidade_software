@@ -8,6 +8,12 @@ O cenario Gherkin correspondente esta em [reservas.feature](./reservas.feature).
 O projeto nao configura Cucumber; os cenarios sao especificacoes rastreaveis e
 os testes JUnit relacionados rodam separadamente.
 
+**Retificação:** o ciclo historico abaixo registrou a regra de aprovação por
+classificação do material, que divergia da RN05 vigente. Nesta revisão, a
+aprovação de reservas novas foi alinhada ao PRD: somente Responsável aprova,
+independentemente do material; os testes atuais e a evidência de execução estão
+na tabela de rastreabilidade ao final.
+
 ## Ciclo TDD executado em 2026-11-13
 
 ### RED
@@ -48,6 +54,7 @@ executaram os testes descritos. O teste Gherkin nao foi executado por runner BDD
 
 | Comportamento | Requisito/regra e caso | Teste JUnit |
 |---|---|---|
-| Material restrito aprovado por Responsavel | RF10, INV-04, CP-54 | `ReservaServiceTest.approvalRespectsMaterialRestriction` |
-| Material restrito recusado para Administrador | RF10, INV-04, CP-55 | `ReservaServiceTest.approvalRespectsMaterialRestriction`; `ReservaPostgresIntegrationTest.deveRecusarAprovacaoDeMaterialRestritoPorAdministrador` |
-| Material nao restrito mantém o fluxo existente | RF10, INV-04, CP-55 | `ReservaServiceTest.approvalRespectsMaterialRestriction` |
+| Material restrito aprovado por Responsavel | RF10, INV-04, CP-54 | `ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction` |
+| Material restrito recusado para Administrador | RF10, INV-04, CP-156 | `ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction`; `ReservaPostgresIntegrationTest.deveRecusarAprovacaoDeMaterialRestritoPorAdministrador` |
+| Material nao restrito aprovado por Responsavel | RF10, INV-04, CP-54 | `ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction` |
+| Material nao restrito recusado para Administrador | RF02, RF10, INV-04, CP-55/CP-157 | `ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction`; `ReservaAutenticacaoPostgresE2ETest.administradorNaoPodeAprovarReservaSemMaterialRestrito` |

@@ -313,6 +313,49 @@ class ReservaPostgresIntegrationTest {
     }
 
     @Test
+    @DisplayName("CP-124 / RF11 / RN04 / INV-05 - Manutenção impede aprovação e preserva solicitação")
+    void deveRecusarAprovacaoQuandoSalaEntraEmManutencao() {
+        Sala sala = salvarSala();
+        Solicitante solicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Responsavel responsavel = responsavelRepository.saveAndFlush(new Responsavel(
+                null,
+                "Responsável de aprovação",
+                UUID.randomUUID() + "@teste.local",
+                "senha-de-teste",
+                null,
+                null
+        ));
+        Reserva reserva = salvarReserva(
+                sala,
+                solicitante,
+                INICIO,
+                FIM,
+                StatusReserva.SOLICITADA
+        );
+        sala.setStatusSala(StatusSala.EM_MANUTENCAO);
+        salaRepository.saveAndFlush(sala);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> reservaService.aprovarReserva(
+                        reserva.getId(),
+                        responsavel.getId(),
+                        TipoAprovadorReserva.RESPONSAVEL
+                )
+        );
+
+        assertEquals(
+                StatusReserva.SOLICITADA,
+                reservaRepository.findById(reserva.getId()).orElseThrow().getStatus()
+        );
+        assertTrue(
+                auditoriaReservaRepository
+                        .findByReservaIdOrderByDataHoraAsc(reserva.getId())
+                        .isEmpty()
+        );
+    }
+
+    @Test
     @DisplayName("CP-138 / CB-71 / RF14-RF15 / RN07 - Criação persiste auditoria inicial")
     void devePersistirAuditoriaDaCriacaoNaMesmaTransacao() {
         Sala sala = salvarSala();

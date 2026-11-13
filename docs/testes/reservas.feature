@@ -45,7 +45,7 @@ Feature: Conflitos e concorrência em reservas de salas
   #         ReservaPostgresIntegrationTest.deveAceitarSolicitacoesConcorrentesParaIntervalosNaoSobrepostos
   #         ReservaPostgresIntegrationTest.deveBloquearSomenteEstadosQueOcupamASala
 
-  Scenario Outline: A aprovacao respeita a classificacao do material
+  Scenario Outline: Somente Responsavel aprova qualquer reserva
     Given uma reserva solicitada contem material com classificacao restrito igual a <restrito>
     When o perfil <aprovador> tenta aprovar a reserva
     Then o resultado da aprovacao e <resultado>
@@ -55,8 +55,7 @@ Feature: Conflitos e concorrência em reservas de salas
       | restrito | aprovador    | resultado          | estado      |
       | true     | RESPONSAVEL  | aprovada            | APROVADA    |
       | true     | ADMINISTRADOR| acesso negado       | SOLICITADA  |
-      | false    | ADMINISTRADOR| aprovada            | APROVADA    |
+      | false    | ADMINISTRADOR| acesso negado       | SOLICITADA  |
 
-  # Testes JUnit relacionados: ReservaServiceTest.approvalRespectsMaterialRestriction
-  # e ReservaPostgresIntegrationTest.deveRecusarAprovacaoDeMaterialRestritoPorAdministrador
-  # Rastreabilidade: RF10 / INV-04 / CP-54 / CP-55.
+  # Teste JUnit relacionado: ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction
+  # Rastreabilidade: RF02 / RF10 / RN05 / INV-04 / CP-54 / CP-55 / CP-156 / CP-157.

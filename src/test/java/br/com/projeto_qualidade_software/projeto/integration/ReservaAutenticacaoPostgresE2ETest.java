@@ -16,11 +16,13 @@ import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelReposit
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
 import br.com.projeto_qualidade_software.projeto.security.PasswordHasher;
+import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -56,6 +58,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 @SpringBootTest(properties = {
         "app.seed.enabled=false",
@@ -235,6 +238,29 @@ class ReservaAutenticacaoPostgresE2ETest {
         );
     }
 
+    @Test
+    @DisplayName("CP-157 / RF02 / RF10 / RN05 - Administrador não aprova nem recurso comum")
+    void administradorNaoPodeAprovarReservaSemMaterialRestrito() throws Exception {
+        Reserva reserva = criarReserva(
+                StatusReserva.SOLICITADA,
+                AGORA.plusHours(1),
+                AGORA.plusHours(2),
+                responsavelId
+        );
+        LoggedInSession administrador = login(administradorEmail);
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/aprovacao", reserva.getId())
+                        .session(administrador.session())
+                        .header("X-CSRF-Token", administrador.csrfToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"usuarioId":%d,"tipoAprovador":"ADMINISTRADOR"}
+                                """.formatted(administradorId)))
+                .andExpect(status().isForbidden());
+
+        verificarSemTransicao(reserva.getId(), StatusReserva.SOLICITADA);
+    }
+
     @ParameterizedTest(name = "{0}")
     @DisplayName("CP-143 / CB-85 / RF02 / RF15 - Responsável opera sua reserva")
     @MethodSource("operacoes")
@@ -361,6 +387,44 @@ class ReservaAutenticacaoPostgresE2ETest {
                 .andExpect(status().isForbidden());
 
         verificarSemTransicao(reserva.getId(), estadoInicial);
+    }
+
+    @Test
+    @DisplayName("CP-153 / RF02 / RF14 / RN07 - Histórico é visível à equipe, não ao solicitante")
+    void consultaAuditoriaProtegidaPorPerfil() throws Exception {
+        Reserva reserva = criarReserva(
+                StatusReserva.SOLICITADA,
+                AGORA.plusHours(1),
+                AGORA.plusHours(2),
+                responsavelId
+        );
+        auditoriaReservaRepository.saveAndFlush(new AuditoriaReserva(
+                null,
+                reserva,
+                null,
+                StatusReserva.SOLICITADA,
+                solicitanteId,
+                PerfilUsuario.SOLICITANTE,
+                AGORA.minusMinutes(1)
+        ));
+        LoggedInSession responsavel = login(responsavelEmail);
+        LoggedInSession solicitante = login(solicitanteEmail);
+        LoggedInSession anonimo = obterSessaoAnonima();
+
+        mockMvc.perform(get("/api/reservas/{reservaId}/auditoria", reserva.getId())
+                        .session(responsavel.session()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].novoEstado").value("SOLICITADA"))
+                .andExpect(jsonPath("$[0].usuarioId").value(solicitanteId))
+                .andExpect(jsonPath("$[0].perfilUsuario").value("SOLICITANTE"));
+
+        mockMvc.perform(get("/api/reservas/{reservaId}/auditoria", reserva.getId())
+                        .session(solicitante.session()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/reservas/{reservaId}/auditoria", reserva.getId())
+                        .session(anonimo.session()))
+                .andExpect(status().isUnauthorized());
     }
 
     private org.springframework.test.web.servlet.ResultActions executar(

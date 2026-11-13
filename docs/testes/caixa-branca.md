@@ -98,12 +98,12 @@ Os casos CB-02, CB-03, CB-07, CB-09, CB-10 e CB-11 (`orElseThrow`) não são des
 
 ### 2.4 Escolha do tipo de aprovador
 
-**`aprovarReserva`, L135, L137 e L139:** se RESPONSAVEL, senão se ADMINISTRADOR, senão erro.
+**`aprovarReserva`:** se RESPONSAVEL, carrega o Responsável e aprova; ADMINISTRADOR é recusado antes de buscar a reserva; tipo inválido também é recusado.
 
 | ID | `tipoAprovador` | Resultado | Nível | INV |
 |---|---|---|---|---|
 | CB-20 | RESPONSAVEL | Chama `buscarResponsavel` e `Reserva.aprovar(Responsavel)`; salva | U | INV-04 |
-| CB-21 | ADMINISTRADOR | Chama `buscarAdministrador` e `Reserva.aprovar(Administrador)`; salva | U | INV-04 |
+| CB-21 | ADMINISTRADOR | Lança `AcessoNegadoException` sem carregar reserva ou alterar estado | U, I | INV-04 |
 | CB-22 | nulo | Lança `AcessoNegadoException` | U | INV-04 |
 
 **`rejeitarReserva`, L154, L156 e L158:** a mesma estrutura.
