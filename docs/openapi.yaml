@@ -6,7 +6,10 @@ info:
     API para autenticar usuarios por sessao HTTP, cadastrar salas como
     Administrador e solicitar/acompanhamento de reservas de salas. Requisicoes
     mutaveis exigem token CSRF. As regras e limitacoes estao descritas em
-    api-reservas.md.
+    api-reservas.md. Apos aprovar, rejeitar ou cancelar uma reserva, o sistema
+    envia o evento NotificacaoReserva para o endpoint configurado em
+    notificacao.url. Falhas e timeouts da notificacao sao registrados e nao
+    revertem a transicao da reserva.
 servers:
   - url: http://localhost:8080
     description: Ambiente local
@@ -845,6 +848,29 @@ components:
           items:
             type: integer
             format: int64
+    NotificacaoReserva:
+      type: object
+      description: Corpo enviado por HTTP POST ao endpoint externo definido em notificacao.url apos a reserva mudar para APROVADA, REJEITADA ou CANCELADA.
+      required: [reservaId, salaId, solicitanteId, status, inicio, fim]
+      properties:
+        reservaId:
+          type: integer
+          format: int64
+        salaId:
+          type: integer
+          format: int64
+        solicitanteId:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [APROVADA, REJEITADA, CANCELADA]
+        inicio:
+          type: string
+          format: date-time
+        fim:
+          type: string
+          format: date-time
     Erro:
       type: object
       required: [mensagem]

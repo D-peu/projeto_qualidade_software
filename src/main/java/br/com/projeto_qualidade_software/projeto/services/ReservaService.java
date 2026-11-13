@@ -27,9 +27,12 @@ import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.LockModeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -46,6 +49,7 @@ import java.util.stream.Collectors;
 @Service
 public class ReservaService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ReservaService.class);
     private static final Set<StatusReserva> STATUS_QUE_OCUPAM_HORARIO =
             EnumSet.of(
                     StatusReserva.SOLICITADA,
@@ -72,6 +76,7 @@ public class ReservaService {
     private final MaterialRepository materialRepository;
     private final EntityManager entityManager;
     private final Clock clock;
+    private final NotificacaoClient notificacaoClient;
 
     @Autowired
     public ReservaService(
@@ -84,7 +89,8 @@ public class ReservaService {
             AdministradorRepository administradorRepository,
             MaterialRepository materialRepository,
             EntityManager entityManager,
-            Clock clock
+            Clock clock,
+            NotificacaoClient notificacaoClient
     ) {
         this.reservaRepository = reservaRepository;
         this.alteracaoHorarioAplicadaRepository = alteracaoHorarioAplicadaRepository;
@@ -96,6 +102,7 @@ public class ReservaService {
         this.materialRepository = materialRepository;
         this.entityManager = entityManager;
         this.clock = clock;
+        this.notificacaoClient = notificacaoClient;
     }
 
     @Transactional
@@ -240,6 +247,7 @@ public class ReservaService {
                 solicitanteId,
                 PerfilUsuario.SOLICITANTE
         );
+        notificarMudancaDeEstado(cancelada);
         return cancelada;
     }
 
@@ -287,6 +295,7 @@ public class ReservaService {
                 usuarioId,
                 perfilAprovador(tipoAprovador)
         );
+        notificarMudancaDeEstado(rejeitada);
         return rejeitada;
     }
 
@@ -473,6 +482,7 @@ public class ReservaService {
                 responsavel.getId(),
                 PerfilUsuario.RESPONSAVEL
         );
+        notificarMudancaDeEstado(aprovada);
         return aprovada;
     }
 
@@ -509,11 +519,33 @@ public class ReservaService {
                 administrador.getId(),
                 PerfilUsuario.ADMINISTRADOR
         );
+        notificarMudancaDeEstado(aprovada);
         return aprovada;
     }
 
     private boolean possuiMaterialRestrito(Reserva reserva) {
         return reserva.getMateriais().stream().anyMatch(Material::isRestrito);
+    }
+
+    private void notificarMudancaDeEstado(Reserva reserva) {
+        NotificacaoReserva notificacao = new NotificacaoReserva(
+                reserva.getId(),
+                reserva.getSala().getId(),
+                reserva.getSolicitante().getId(),
+                reserva.getStatus(),
+                reserva.getInicio(),
+                reserva.getFim()
+        );
+        try {
+            notificacaoClient.notificar(notificacao);
+        } catch (RestClientException exception) {
+            LOGGER.warn(
+                    "Falha ao notificar a reserva {}; estado atual {} foi mantido.",
+                    reserva.getId(),
+                    reserva.getStatus(),
+                    exception
+            );
+        }
     }
 
     private Reserva transicionarReserva(

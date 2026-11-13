@@ -826,7 +826,8 @@ class ReservaServiceTest {
                 ResponsavelRepository responsavelRepository,
                 AdministradorRepository administradorRepository,
                 MaterialRepository materialRepository,
-                EntityManager entityManager
+                EntityManager entityManager,
+                NotificacaoClient notificacaoClient
         ) {
             Clock clock = Clock.fixed(REFERENCE_TIME.atZone(TIME_ZONE).toInstant(), TIME_ZONE);
             return new ReservaService(
@@ -839,8 +840,15 @@ class ReservaServiceTest {
                     administradorRepository,
                     materialRepository,
                     entityManager,
-                    clock
+                    clock,
+                    notificacaoClient
             );
+        }
+
+        @Bean
+        NotificacaoClient notificacaoClient() {
+            return notificacao -> {
+            };
         }
     }
 

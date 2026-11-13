@@ -27,7 +27,7 @@ Ficam fora da validação funcional automatizada da implementação atual: cadas
 | Concorrência | JUnit 5, REST-assured e Testcontainers com PostgreSQL | Disparar solicitações conflitantes em paralelo para a mesma sala e intervalo; conferir resultado final no banco e evidenciar que não houve dupla reserva (RF09 e RN03). |
 | Segurança | JUnit 5, MockMvc e testes do serviço | Login com credenciais válidas/inválidas, sessão e logout, token CSRF, perfil × operação e posse da reserva. Gestão de contas e recuperação de senha permanecem pendentes. |
 | Carga | Apache JMeter | Medir consultas, criação sem conflito e contenção por sala/intervalo; entregar plano e resultado. Metas experimentais provisórias: 50 usuários virtuais, 5 minutos, p95 abaixo de 500 ms e erros abaixo de 1%. Não são requisitos oficiais aprovados, precisam ser validadas e os resultados podem não atingi-las. |
-| Integrações externas | WireMock, se aplicável | RF19 está pendente: a decisão entre notificação simulada e API externa, assim como eventos, payload e comportamento em falha ou timeout, ainda precisa ser definida. Não há cliente HTTP externo no código atual; WireMock será usado se uma integração for confirmada e implementada. |
+| Integrações externas | WireMock e `RestClient` | Após aprovar, rejeitar ou cancelar, enviar `NotificacaoReserva` para `notificacao.url`. WireMock verifica resposta 200, erro 500, timeout e corpo; falhas não revertem o estado persistido. |
 
 Os testes de API devem cobrir os resultados documentados no OpenAPI, incluindo `201` na solicitação aceita e erros `400`, `403`, `404` ou `409` quando aplicáveis. O contrato deve declarar as propriedades obrigatórias da resposta `Reserva` e exemplos de erro para 400, 403, 404 e 409.
 
@@ -81,7 +81,7 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 - RF10 e RF11 excedem o comportamento atualmente implementado; testar apenas o recorte existente pode criar falsa impressão de conformidade com o PRD.
 - Um banco em memória ou mocks para repositórios não reproduzem necessariamente locks e concorrência do PostgreSQL; por isso, não servem como única evidência de RF09.
 - Os identificadores e papéis enviados nas requisições não definem a identidade: o serviço os compara com a sessão autenticada. Os testes Java cobrem login/sessão e autorização; ainda não há E2E de navegador.
-- Não há cliente de notificação; o WireMock não terá integração concreta para verificar até RF19 ser implementado.
+- A URL de produção do serviço de notificação precisa ser fornecida no ambiente; o padrão `localhost:8089` é apenas local.
 - As metas de carga são premissas ainda não medidas. Resultados do JMeter só viram aprovação depois de validadas.
 - A interface web chama a API; a suíte Node valida seu contrato, mas não há teste E2E automatizado de navegador.
 - `solicitadoEm` e `aprovadoEm` usam o relógio do sistema; asserts dependentes de horário exato podem ser instáveis.
@@ -96,7 +96,7 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 | 3 | RF10/INV-04: `Material` tem classificacao `restrito`; somente `RESPONSAVEL` aprova reservas que contenham material restrito. Material nao restrito mantém o fluxo existente, inclusive a aprovação por Administrador. | Especificacao da disciplina; ciclo TDD documentado em `evidencias-tdd-bdd.md`. | Grupo |
 | 4 | RF08: a detecção de sobreposição vale para sala, professor e material; docentes reutilizam contas PROFESSOR e materiais são persistidos como recursos associados à reserva. | RN02 da especificação. | Grupo |
 | 5 | RF11: testar sala em manutenção, período futuro de bloqueio e reserva existente dentro de um bloqueio novo. O bloqueio novo é recusado enquanto existir reserva ativa no período. | Regra mais simples de testar e de explicar. | Grupo |
-| 6 | RF19: decidir se haverá notificação simulada ou integração externa e definir eventos, contrato e comportamento em falha. Usar WireMock se uma integração HTTP for confirmada e implementada. | A decisão de escopo e o contrato ainda estão pendentes; não presumir uma integração inexistente. | Pendente |
+| 6 | RF19 da equipe / RF11 da disciplina: usar notificação HTTP após aprovação, rejeição e cancelamento; definir corpo em `NotificacaoReserva`; não reverter a reserva em erro ou timeout. | Integração implementada com `RestClient`; testes WireMock verificam 200/corpo, 500 e timeout. | Grupo |
 | 7 | Carga (premissa a validar): 50 usuários, 5 minutos, p95 abaixo de 500 ms, erro abaixo de 1%, ambiente local em containers. | A disciplina não define a carga. | Grupo |
 | 8 | E2E pela jornada completa da API com banco real; interface servida pelo Spring Boot consome os endpoints. Teste automatizado de navegador fica pendente. | O frontend integrado usa a API, mas não há runner E2E de navegador configurado. | Grupo |
 | 9 | Responsividade verificada manualmente em Chrome, Firefox e viewport de celular. Java 21 e PostgreSQL 16. | Escopo do E2E reduzido. | Grupo |
