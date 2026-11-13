@@ -68,8 +68,8 @@ public class DevDataInitializer implements ApplicationRunner {
         );
         criarResponsavelSeAusente(hoje);
         criarAdministradorSeAusente(hoje);
-        criarMaterialSeAusente("Projetor multimídia");
-        criarMaterialSeAusente("Notebook");
+        criarMaterialSeAusente("Projetor multimídia", true);
+        criarMaterialSeAusente("Notebook", true);
     }
 
     private void criarSolicitanteSeAusente(
@@ -120,9 +120,11 @@ public class DevDataInitializer implements ApplicationRunner {
         }
     }
 
-    private void criarMaterialSeAusente(String nome) {
+    private void criarMaterialSeAusente(String nome, boolean restrito) {
         if (materialRepository.findByNomeIgnoreCase(nome).isEmpty()) {
-            materialRepository.save(new Material(null, nome));
+            Material material = new Material(null, nome);
+            material.setRestrito(restrito);
+            materialRepository.save(material);
         }
     }
 }
