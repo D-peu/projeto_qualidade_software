@@ -1,14 +1,18 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.AlteracaoHorarioAplicada;
+import br.com.projeto_qualidade_software.projeto.entities.Administrador;
 import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
+import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
 import br.com.projeto_qualidade_software.projeto.entities.Solicitante;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
+import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
+import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.AlteracaoHorarioAplicadaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.AuditoriaReservaRepository;
@@ -90,6 +94,62 @@ class ReservaServiceTest {
 
     private Long salaId;
     private Long solicitanteId;
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("aprovacaoPorRestricaoDoMaterial")
+    @DisplayName("CP-54/CP-55 / RF10 / INV-04 - Aprovação conforme restrição")
+    void approvalRespectsMaterialRestriction(
+            String caso,
+            boolean restrito,
+            TipoAprovadorReserva tipoAprovador,
+            Class<? extends RuntimeException> falhaEsperada
+    ) {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        Administrador administrador = new Administrador(
+                null,
+                "Administrador",
+                "administrador" + System.nanoTime() + "@example.test",
+                "hash",
+                LocalDate.now(),
+                LocalDate.now()
+        );
+        entityManager.persist(administrador);
+
+        Material material = new Material(null, "Material " + System.nanoTime());
+        material.setRestrito(restrito);
+        entityManager.persist(material);
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.SOLICITADA,
+                REFERENCE_TIME.plusDays(1),
+                REFERENCE_TIME.plusDays(1).plusHours(1),
+                null
+        );
+        reserva.getMateriais().add(material);
+        entityManager.flush();
+
+        Long aprovadorId = tipoAprovador == TipoAprovadorReserva.RESPONSAVEL
+                ? responsavel.getId()
+                : administrador.getId();
+        if (falhaEsperada != null) {
+            assertThrows(
+                    falhaEsperada,
+                    () -> reservaService.aprovarReserva(
+                            reserva.getId(), aprovadorId, tipoAprovador
+                    )
+            );
+            assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
+            return;
+        }
+
+        assertEquals(
+                StatusReserva.APROVADA,
+                reservaService.aprovarReserva(
+                        reserva.getId(), aprovadorId, tipoAprovador
+                ).getStatus()
+        );
+    }
 
     @Test
     void expiresSolicitationsBeforeAtAndAfterStartWhenListing() {
@@ -726,6 +786,29 @@ class ReservaServiceTest {
                         "horário futuro em outro dia",
                         REFERENCE_TIME.plusDays(1).withHour(9).withMinute(30),
                         REFERENCE_TIME.plusDays(1).withHour(10).withMinute(30)
+                )
+        );
+    }
+
+    private static Stream<Arguments> aprovacaoPorRestricaoDoMaterial() {
+        return Stream.of(
+                Arguments.of(
+                        "restrito aprovado por Responsável",
+                        true,
+                        TipoAprovadorReserva.RESPONSAVEL,
+                        null
+                ),
+                Arguments.of(
+                        "restrito recusado para Administrador",
+                        true,
+                        TipoAprovadorReserva.ADMINISTRADOR,
+                        AcessoNegadoException.class
+                ),
+                Arguments.of(
+                        "não restrito mantém aprovação por Administrador",
+                        false,
+                        TipoAprovadorReserva.ADMINISTRADOR,
+                        null
                 )
         );
     }
