@@ -27,13 +27,13 @@ import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.LockModeType;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -73,32 +73,8 @@ public class ReservaService {
     private final EntityManager entityManager;
     private final Clock clock;
 
+    @Autowired
     public ReservaService(
-            ReservaRepository reservaRepository,
-            AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository,
-            AuditoriaReservaRepository auditoriaReservaRepository,
-            SalaRepository salaRepository,
-            SolicitanteRepository solicitanteRepository,
-            ResponsavelRepository responsavelRepository,
-            AdministradorRepository administradorRepository,
-            MaterialRepository materialRepository,
-            EntityManager entityManager
-    ) {
-        this(
-                reservaRepository,
-                alteracaoHorarioAplicadaRepository,
-                auditoriaReservaRepository,
-                salaRepository,
-                solicitanteRepository,
-                responsavelRepository,
-                administradorRepository,
-                materialRepository,
-                entityManager,
-                Clock.system(ZoneId.of("America/Sao_Paulo"))
-        );
-    }
-
-    ReservaService(
             ReservaRepository reservaRepository,
             AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository,
             AuditoriaReservaRepository auditoriaReservaRepository,
@@ -210,7 +186,7 @@ public class ReservaService {
     ) {
         validarIntervalo(inicio, fim);
         ContextoAutenticacao.exigirSolicitante(solicitanteId);
-        Reserva reserva = buscarReservaBloqueada(reservaId);
+        Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
         validarSolicitante(reserva, solicitanteId);
         if (reserva.getStatus() != StatusReserva.SOLICITADA) {
             throw new IllegalStateException(
@@ -458,7 +434,7 @@ public class ReservaService {
 
     @Transactional(noRollbackFor = ReservaExpiradaException.class)
     public Reserva aprovar(Long reservaId, Responsavel responsavel) {
-        Reserva reserva = buscarReservaBloqueada(reservaId);
+        Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
         StatusReserva anterior = reserva.getStatus();
 
         if (reserva.getStatus() == StatusReserva.SOLICITADA
@@ -501,7 +477,7 @@ public class ReservaService {
     }
 
     private Reserva aprovarPorAdministrador(Long reservaId, Administrador administrador) {
-        Reserva reserva = buscarReservaBloqueada(reservaId);
+        Reserva reserva = buscarReservaComSalaBloqueada(reservaId);
         StatusReserva anterior = reserva.getStatus();
         Sala sala = bloquearRecursosDaReserva(reserva);
         if (sala.getStatusSala() != StatusSala.DISPONIVEL) {
@@ -610,6 +586,15 @@ public class ReservaService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Reserva não encontrada: " + reservaId
                 ));
+    }
+
+    private Reserva buscarReservaComSalaBloqueada(Long reservaId) {
+        Long salaId = reservaRepository.findSalaIdByReservaId(reservaId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Reserva não encontrada: " + reservaId
+                ));
+        buscarSalaBloqueada(salaId);
+        return buscarReservaBloqueada(reservaId);
     }
 
     private Sala buscarSalaBloqueada(Long salaId) {
@@ -749,12 +734,17 @@ public class ReservaService {
                     "Os horários devem respeitar incrementos de 30 minutos."
             );
         }
+        if (!segundosENanosZerados(inicio) || !segundosENanosZerados(fim)) {
+            throw new IllegalArgumentException("Os segundos e nanos devem ser zerados.");
+        }
     }
 
     private boolean minutosValidos(LocalDateTime horario) {
-        return (horario.getMinute() == 0 || horario.getMinute() == 30)
-                && horario.getSecond() == 0
-                && horario.getNano() == 0;
+        return horario.getMinute() == 0 || horario.getMinute() == 30;
+    }
+
+    private boolean segundosENanosZerados(LocalDateTime horario) {
+        return horario.getSecond() == 0 && horario.getNano() == 0;
     }
 
     private void expirarSolicitacoesVencidas() {
@@ -799,14 +789,14 @@ public class ReservaService {
                     "O novo horário deve iniciar no futuro."
             );
         }
-        if (inicio.getMinute() % 30 != 0
-                || fim.getMinute() % 30 != 0
-                || inicio.getSecond() != 0
-                || fim.getSecond() != 0
-                || inicio.getNano() != 0
-                || fim.getNano() != 0) {
+        if (inicio.getMinute() % 30 != 0 || fim.getMinute() % 30 != 0) {
             throw new ReservaHorarioInvalidoException(
                     "Os horários devem respeitar incrementos de 30 minutos."
+            );
+        }
+        if (!segundosENanosZerados(inicio) || !segundosENanosZerados(fim)) {
+            throw new ReservaHorarioInvalidoException(
+                    "Os segundos e nanos devem ser zerados."
             );
         }
     }
