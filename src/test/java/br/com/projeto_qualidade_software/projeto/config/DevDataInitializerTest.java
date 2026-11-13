@@ -12,10 +12,12 @@ import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteReposit
 import br.com.projeto_qualidade_software.projeto.security.PasswordHasher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.ApplicationArguments;
 
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -66,7 +68,9 @@ class DevDataInitializerTest {
         verify(solicitanteRepository, org.mockito.Mockito.times(2)).save(any(Solicitante.class));
         verify(responsavelRepository).save(any(Responsavel.class));
         verify(administradorRepository).save(any(Administrador.class));
-        verify(materialRepository, org.mockito.Mockito.times(2)).save(any(Material.class));
+        ArgumentCaptor<Material> materiais = ArgumentCaptor.forClass(Material.class);
+        verify(materialRepository, org.mockito.Mockito.times(2)).save(materiais.capture());
+        assertTrue(materiais.getAllValues().stream().allMatch(Material::isRestrito));
         verify(passwordHasher, org.mockito.Mockito.times(4)).encode(any());
     }
 

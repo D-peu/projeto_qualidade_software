@@ -1,17 +1,32 @@
 package br.com.projeto_qualidade_software.projeto.services;
 
 import br.com.projeto_qualidade_software.projeto.entities.AlteracaoHorarioAplicada;
+import br.com.projeto_qualidade_software.projeto.entities.Administrador;
+import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
+import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
 import br.com.projeto_qualidade_software.projeto.entities.Solicitante;
 import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
+import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
+import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
+import br.com.projeto_qualidade_software.projeto.repositories.AdministradorRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.AlteracaoHorarioAplicadaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.AuditoriaReservaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.MaterialRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.ResponsavelRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
+import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
 import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -31,10 +46,12 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -51,8 +68,14 @@ class ReservaServiceTest {
     private static final LocalDateTime REFERENCE_TIME =
             LocalDateTime.of(2026, 11, 12, 8, 0);
 
-    @Autowired
+    @MockitoSpyBean
     private ReservaRepository reservaRepository;
+
+    @MockitoSpyBean
+    private SalaRepository salaRepository;
+
+    @MockitoSpyBean
+    private SolicitanteRepository solicitanteRepository;
 
     @Autowired
     private AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository;
@@ -68,6 +91,65 @@ class ReservaServiceTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    private Long salaId;
+    private Long solicitanteId;
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("aprovacaoPorRestricaoDoMaterial")
+    @DisplayName("CP-54/CP-55 / RF10 / INV-04 - Aprovação conforme restrição")
+    void approvalRespectsMaterialRestriction(
+            String caso,
+            boolean restrito,
+            TipoAprovadorReserva tipoAprovador,
+            Class<? extends RuntimeException> falhaEsperada
+    ) {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Responsavel responsavel = persistResponsavel();
+        Administrador administrador = new Administrador(
+                null,
+                "Administrador",
+                "administrador" + System.nanoTime() + "@example.test",
+                "hash",
+                LocalDate.now(),
+                LocalDate.now()
+        );
+        entityManager.persist(administrador);
+
+        Material material = new Material(null, "Material " + System.nanoTime());
+        material.setRestrito(restrito);
+        entityManager.persist(material);
+        Reserva reserva = persistReserva(
+                sala,
+                StatusReserva.SOLICITADA,
+                REFERENCE_TIME.plusDays(1),
+                REFERENCE_TIME.plusDays(1).plusHours(1),
+                null
+        );
+        reserva.getMateriais().add(material);
+        entityManager.flush();
+
+        Long aprovadorId = tipoAprovador == TipoAprovadorReserva.RESPONSAVEL
+                ? responsavel.getId()
+                : administrador.getId();
+        if (falhaEsperada != null) {
+            assertThrows(
+                    falhaEsperada,
+                    () -> reservaService.aprovarReserva(
+                            reserva.getId(), aprovadorId, tipoAprovador
+                    )
+            );
+            assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
+            return;
+        }
+
+        assertEquals(
+                StatusReserva.APROVADA,
+                reservaService.aprovarReserva(
+                        reserva.getId(), aprovadorId, tipoAprovador
+                ).getStatus()
+        );
+    }
 
     @Test
     void expiresSolicitationsBeforeAtAndAfterStartWhenListing() {
@@ -295,7 +377,7 @@ class ReservaServiceTest {
         IllegalArgumentException erro = assertThrows(
                 IllegalArgumentException.class,
                 () -> reservaService.solicitarReserva(
-                        SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+                        salaId, solicitanteId, TipoSolicitante.PROFESSOR, inicio, fim
                 )
         );
 
@@ -314,7 +396,7 @@ class ReservaServiceTest {
         prepararSolicitacaoSemConflito(inicio, fim);
 
         Reserva resultado = reservaService.solicitarReserva(
-                SALA_ID, SOLICITANTE_ID, TipoSolicitante.PROFESSOR, inicio, fim
+                salaId, solicitanteId, TipoSolicitante.PROFESSOR, inicio, fim
         );
 
         assertEquals(inicio, resultado.getInicio(), caso);
@@ -632,6 +714,105 @@ class ReservaServiceTest {
                 .getStatus();
     }
 
+    private void prepararSolicitacaoSemConflito(
+            LocalDateTime inicio,
+            LocalDateTime fim
+    ) {
+        Sala sala = persistSala(StatusSala.DISPONIVEL);
+        Solicitante solicitante = new Solicitante(
+                null,
+                "Solicitante RF07",
+                "rf07-" + System.nanoTime() + "@example.test",
+                "hash",
+                TipoSolicitante.PROFESSOR,
+                LocalDate.now(),
+                LocalDate.now()
+        );
+        entityManager.persist(solicitante);
+        entityManager.flush();
+        salaId = sala.getId();
+        solicitanteId = solicitante.getId();
+    }
+
+    private void verificarNenhumRepositorioConsultado() {
+        verifyNoInteractions(reservaRepository, salaRepository, solicitanteRepository);
+    }
+
+    private static Stream<Arguments> intervalosInvalidosRF07() {
+        LocalDateTime futuro = REFERENCE_TIME.plusDays(1);
+        return Stream.of(
+                Arguments.of(
+                        "início passado",
+                        REFERENCE_TIME.minusHours(1),
+                        REFERENCE_TIME.plusHours(1),
+                        "futuro"
+                ),
+                Arguments.of(
+                        "início exatamente agora",
+                        REFERENCE_TIME,
+                        REFERENCE_TIME.plusHours(1),
+                        "futuro"
+                ),
+                Arguments.of(
+                        "início em minuto diferente de 00 ou 30",
+                        REFERENCE_TIME.plusHours(1).plusMinutes(15),
+                        REFERENCE_TIME.plusHours(2).plusMinutes(15),
+                        "30 minutos"
+                ),
+                Arguments.of(
+                        "fim em minuto diferente de 00 ou 30",
+                        REFERENCE_TIME.plusHours(1),
+                        REFERENCE_TIME.plusHours(2).plusMinutes(15),
+                        "30 minutos"
+                ),
+                Arguments.of("fim igual ao início", futuro, futuro, "posterior"),
+                Arguments.of(
+                        "fim anterior ao início",
+                        futuro.plusHours(1),
+                        futuro,
+                        "posterior"
+                )
+        );
+    }
+
+    private static Stream<Arguments> intervalosValidosRF07() {
+        return Stream.of(
+                Arguments.of(
+                        "horário futuro no mesmo dia",
+                        REFERENCE_TIME.plusHours(1),
+                        REFERENCE_TIME.plusHours(2)
+                ),
+                Arguments.of(
+                        "horário futuro em outro dia",
+                        REFERENCE_TIME.plusDays(1).withHour(9).withMinute(30),
+                        REFERENCE_TIME.plusDays(1).withHour(10).withMinute(30)
+                )
+        );
+    }
+
+    private static Stream<Arguments> aprovacaoPorRestricaoDoMaterial() {
+        return Stream.of(
+                Arguments.of(
+                        "restrito aprovado por Responsável",
+                        true,
+                        TipoAprovadorReserva.RESPONSAVEL,
+                        null
+                ),
+                Arguments.of(
+                        "restrito recusado para Administrador",
+                        true,
+                        TipoAprovadorReserva.ADMINISTRADOR,
+                        AcessoNegadoException.class
+                ),
+                Arguments.of(
+                        "não restrito mantém aprovação por Administrador",
+                        false,
+                        TipoAprovadorReserva.ADMINISTRADOR,
+                        null
+                )
+        );
+    }
+
     @TestConfiguration(proxyBeanMethods = false)
     static class FixedTimeConfiguration {
 
@@ -639,15 +820,35 @@ class ReservaServiceTest {
         ReservaService reservaService(
                 ReservaRepository reservaRepository,
                 AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository,
-                EntityManager entityManager
+                AuditoriaReservaRepository auditoriaReservaRepository,
+                SalaRepository salaRepository,
+                SolicitanteRepository solicitanteRepository,
+                ResponsavelRepository responsavelRepository,
+                AdministradorRepository administradorRepository,
+                MaterialRepository materialRepository,
+                EntityManager entityManager,
+                NotificacaoClient notificacaoClient
         ) {
             Clock clock = Clock.fixed(REFERENCE_TIME.atZone(TIME_ZONE).toInstant(), TIME_ZONE);
             return new ReservaService(
                     reservaRepository,
                     alteracaoHorarioAplicadaRepository,
+                    auditoriaReservaRepository,
+                    salaRepository,
+                    solicitanteRepository,
+                    responsavelRepository,
+                    administradorRepository,
+                    materialRepository,
                     entityManager,
-                    clock
+                    clock,
+                    notificacaoClient
             );
+        }
+
+        @Bean
+        NotificacaoClient notificacaoClient() {
+            return notificacao -> {
+            };
         }
     }
 

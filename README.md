@@ -58,6 +58,13 @@ Contrato completo em [`docs/openapi.yaml`](docs/openapi.yaml) e guia em [`docs/a
 
 O formulário permite selecionar docentes e materiais. A conta Professor autenticada é sempre alocada à própria reserva; contas Coordenador podem selecionar docentes cadastrados. Para chamadas à API, consulte os catálogos autenticados `GET /api/professores` e `GET /api/materiais` e envie os IDs em `professorIds`/`materialIds`.
 
+Após aprovação, rejeição ou cancelamento, o backend envia um `POST` com o evento
+`NotificacaoReserva` ao endereço configurado em `NOTIFICACAO_URL` (propriedade
+`notificacao.url`; padrão local `http://localhost:8089/notificacoes/reservas`).
+O timeout de conexão e leitura é configurável por `NOTIFICACAO_TIMEOUT` (padrão
+`500ms`). Erro HTTP ou timeout é registrado no log e não reverte a reserva.
+O contrato do corpo está em [`docs/openapi.yaml`](docs/openapi.yaml).
+
 ## Como testar
 
 ```
@@ -65,7 +72,7 @@ O formulário permite selecionar docentes e materiais. A conta Professor autenti
 node --test tests/*.test.js
 ```
 
-A suíte automatizada inclui testes Java unitários e de integração com PostgreSQL via Testcontainers, além de testes Node do contrato frontend/API. O planejamento e os limites de cobertura estão em [`docs/testes/`](docs/testes/).
+A suíte automatizada inclui testes Java unitários e de integração com PostgreSQL via Testcontainers, testes de notificação HTTP com WireMock e testes Node do contrato frontend/API. O planejamento e os limites de cobertura estão em [`docs/testes/`](docs/testes/).
 
 ## SonarCloud
 

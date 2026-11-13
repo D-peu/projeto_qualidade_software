@@ -1,6 +1,7 @@
 package br.com.projeto_qualidade_software.projeto.integration;
 
 import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
+import br.com.projeto_qualidade_software.projeto.entities.Administrador;
 import br.com.projeto_qualidade_software.projeto.entities.Material;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
@@ -69,7 +70,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(properties = {
         "app.seed.enabled=false",
         "app.auth.enabled=false",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.enabled=false"
 })
 @Testcontainers
 @Transactional
@@ -94,7 +96,7 @@ class ReservaPostgresIntegrationTest {
                     .withUsername("test")
                     .withPassword("test")
                     .waitingFor(Wait.forSuccessfulCommand(
-                            "pg_isready -U test -d reservas_test"
+                            "pg_isready -h 127.0.0.1 -U test -d reservas_test"
                     ).withStartupTimeout(Duration.ofSeconds(60)));
 
     @Autowired
@@ -262,6 +264,52 @@ class ReservaPostgresIntegrationTest {
         assertEquals(sala.getId(), recuperada.getSala().getId());
         assertEquals(solicitante.getId(), recuperada.getSolicitante().getId());
         assertNotNull(recuperada.getSolicitadoEm());
+    }
+
+    @Test
+    @DisplayName("CP-55 / RF10 / INV-04 - Administrador não aprova material restrito")
+    void deveRecusarAprovacaoDeMaterialRestritoPorAdministrador() {
+        Sala sala = salvarSala();
+        Solicitante solicitante = salvarSolicitante(TipoSolicitante.COORDENADOR);
+        Material material = new Material(
+                null,
+                "Projetor " + UUID.randomUUID()
+        );
+        material.setRestrito(true);
+        materialRepository.saveAndFlush(material);
+
+        Administrador administrador = new Administrador(
+                null,
+                "Administrador de integração",
+                UUID.randomUUID() + "@teste.local",
+                "senha-de-teste",
+                null,
+                null
+        );
+        entityManager.persist(administrador);
+
+        Reserva reserva = salvarReserva(
+                sala,
+                solicitante,
+                INICIO,
+                FIM,
+                StatusReserva.SOLICITADA
+        );
+        reserva.getMateriais().add(material);
+        reservaRepository.saveAndFlush(reserva);
+
+        assertThrows(
+                AcessoNegadoException.class,
+                () -> reservaService.aprovarReserva(
+                        reserva.getId(),
+                        administrador.getId(),
+                        TipoAprovadorReserva.ADMINISTRADOR
+                )
+        );
+        assertEquals(
+                StatusReserva.SOLICITADA,
+                reservaRepository.findById(reserva.getId()).orElseThrow().getStatus()
+        );
     }
 
     @Test

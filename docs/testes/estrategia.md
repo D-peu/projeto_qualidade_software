@@ -14,7 +14,7 @@ Estão no escopo de verificação da API descrita em `docs/openapi.yaml`:
 
 Os cenários prioritários rastreiam RF07 a RF11 e as regras RN01 a RN05, conforme critério acadêmico. RF07 está implementado; RF08 a RF11 têm cobertura parcial ou lacunas descritas na matriz da seção 4. RF06 pode ser coberto nos fluxos implementados de solicitação, alteração e cancelamento.
 
-Ficam fora da validação funcional automatizada da implementação atual: cadastros e pesquisa geral (RF03 a RF05), conflitos de professor e material, classificação de recursos restritos, manutenção por período, validação de alocação docente, movimentação de materiais, auditoria, ciclo completo de estados e relatórios. Login/sessão, token CSRF e regras de perfil têm testes Java; a interface web responsiva consome a API e a suíte Node valida o cliente, mas não há automação E2E de navegador configurada. Esses limites não devem ser reportados como requisitos aprovados por testes que não os exercitam.
+Ficam fora da validação funcional automatizada da implementação atual: cadastros e pesquisa geral (RF03 a RF05), manutenção por período, validação de alocação docente, movimentação de materiais, auditoria, ciclo completo de estados e relatórios. A classificação de materiais restritos e a regra de aprovação correspondente passaram a ter testes unitários parametrizados e integração PostgreSQL; isso não comprova classificação de salas ou docentes. Login/sessão, token CSRF e regras de perfil têm testes Java; a interface web responsiva consome a API e a suíte Node valida o cliente, mas não há automação E2E de navegador configurada. Esses limites não devem ser reportados como requisitos aprovados por testes que não os exercitam.
 
 ## 2. Níveis e ferramentas
 
@@ -27,7 +27,7 @@ Ficam fora da validação funcional automatizada da implementação atual: cadas
 | Concorrência | JUnit 5, REST-assured e Testcontainers com PostgreSQL | Disparar solicitações conflitantes em paralelo para a mesma sala e intervalo; conferir resultado final no banco e evidenciar que não houve dupla reserva (RF09 e RN03). |
 | Segurança | JUnit 5, MockMvc e testes do serviço | Login com credenciais válidas/inválidas, sessão e logout, token CSRF, perfil × operação e posse da reserva. Gestão de contas e recuperação de senha permanecem pendentes. |
 | Carga | Apache JMeter | Medir consultas, criação sem conflito e contenção por sala/intervalo; entregar plano e resultado. Metas experimentais provisórias: 50 usuários virtuais, 5 minutos, p95 abaixo de 500 ms e erros abaixo de 1%. Não são requisitos oficiais aprovados, precisam ser validadas e os resultados podem não atingi-las. |
-| Integrações externas | WireMock, se aplicável | RF19 está pendente: a decisão entre notificação simulada e API externa, assim como eventos, payload e comportamento em falha ou timeout, ainda precisa ser definida. Não há cliente HTTP externo no código atual; WireMock será usado se uma integração for confirmada e implementada. |
+| Integrações externas | WireMock e `RestClient` | Após aprovar, rejeitar ou cancelar, enviar `NotificacaoReserva` para `notificacao.url`. WireMock verifica resposta 200, erro 500, timeout e corpo; falhas não revertem o estado persistido. |
 
 Os testes de API devem cobrir os resultados documentados no OpenAPI, incluindo `201` na solicitação aceita e erros `400`, `403`, `404` ou `409` quando aplicáveis. O contrato deve declarar as propriedades obrigatórias da resposta `Reserva` e exemplos de erro para 400, 403, 404 e 409.
 
@@ -59,7 +59,7 @@ A presença na RTM não significa que um requisito esteja implementado ou aprova
 | RF07 e RN01 | Criar e alterar reserva com término posterior; rejeitar início ou fim ausentes ou término igual ou anterior ao início. Validar resposta HTTP e regra de intervalo. | Implementado em `ReservaService.validarIntervalo`; DTOs também validam campos obrigatórios. |
 | RF08 e RN02 | Verificar sobreposição e adjacência para sala, docente e material, incluindo reservas próprias alteradas e estados que ocupam agenda. | Implementado; testes de serviço e integração verificam conflito por cada recurso. |
 | RF09 e RN03 | Submeter em paralelo solicitações que compartilham sala, docente ou material contra PostgreSQL; exigir no máximo uma aceita por recurso e intervalo. | Implementado; Testcontainers cobre concorrência para sala, professor e material em salas diferentes. |
-| RF10 e RN05 | Somente o Responsável aprova recurso restrito; recurso não restrito segue o fluxo normal. O recurso terá um campo que o classifica como restrito. | Pendente ou parcial: não há classificação de recurso restrito; o código aceita `RESPONSAVEL` ou `ADMINISTRADOR` na decisão. Não marcar como aprovado. |
+| RF10 e INV-04 | Somente o Responsável aprova reserva que contenha material restrito; material não restrito mantém o fluxo existente. Validar o perfil, o estado final e a persistência da classificação. | Implementado para materiais. Testes parametrizados em `ReservaServiceTest.approvalRespectsMaterialRestriction`, integração PostgreSQL em `ReservaPostgresIntegrationTest.deveRecusarAprovacaoDeMaterialRestritoPorAdministrador` e migration em `AlteracaoHorarioMigrationPostgresTest.restrictedMaterialMigrationDefaultsExistingRecordsToUnrestricted`. |
 | RF11 e RN04 | Tentar solicitar reserva para sala indisponível e verificar recusa. Separar indisponibilidade por estado de sala de bloqueio e manutenção por período. Um bloqueio novo é recusado enquanto existir reserva ativa no período. | Parcial: o serviço recusa sala cujo estado não seja `DISPONIVEL`; não há agenda de bloqueios ou manutenções por período. |
 
 Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloqueado ou não executado) e manter a ligação entre RF e RN, caso de teste e evidência.
@@ -81,7 +81,7 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 - RF10 e RF11 excedem o comportamento atualmente implementado; testar apenas o recorte existente pode criar falsa impressão de conformidade com o PRD.
 - Um banco em memória ou mocks para repositórios não reproduzem necessariamente locks e concorrência do PostgreSQL; por isso, não servem como única evidência de RF09.
 - Os identificadores e papéis enviados nas requisições não definem a identidade: o serviço os compara com a sessão autenticada. Os testes Java cobrem login/sessão e autorização; ainda não há E2E de navegador.
-- Não há cliente de notificação; o WireMock não terá integração concreta para verificar até RF19 ser implementado.
+- A URL de produção do serviço de notificação precisa ser fornecida no ambiente; o padrão `localhost:8089` é apenas local.
 - As metas de carga são premissas ainda não medidas. Resultados do JMeter só viram aprovação depois de validadas.
 - A interface web chama a API; a suíte Node valida seu contrato, mas não há teste E2E automatizado de navegador.
 - `solicitadoEm` e `aprovadoEm` usam o relógio do sistema; asserts dependentes de horário exato podem ser instáveis.
@@ -93,10 +93,10 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 |---|---|---|---|
 | 1 | PostgreSQL 16 em container (Testcontainers) nos testes; a CI usa `ubuntu-latest`, que já tem Docker. | A concorrência depende do comportamento de locks do banco real. | Grupo |
 | 2 | `pom.xml`, `mvnw` e JaCoCo na fase de base. Exclusões do JaCoCo só para DTOs, classe principal, classes de configuração e `DevDataInitializer`, cada uma justificada. | Serviços, entidades com regra e o handler de erros devem ser medidos. | Grupo |
-| 3 | RF10: o recurso terá um campo restrito. Somente `RESPONSAVEL` aprova recurso restrito (o código atual também aceita `ADMINISTRADOR`, possível defeito). Recurso não restrito passa direto para `APROVADA`. | RN05 da especificação. | Grupo |
+| 3 | RF10/INV-04: `Material` tem classificacao `restrito`; somente `RESPONSAVEL` aprova reservas que contenham material restrito. Material nao restrito mantém o fluxo existente, inclusive a aprovação por Administrador. | Especificacao da disciplina; ciclo TDD documentado em `evidencias-tdd-bdd.md`. | Grupo |
 | 4 | RF08: a detecção de sobreposição vale para sala, professor e material; docentes reutilizam contas PROFESSOR e materiais são persistidos como recursos associados à reserva. | RN02 da especificação. | Grupo |
 | 5 | RF11: testar sala em manutenção, período futuro de bloqueio e reserva existente dentro de um bloqueio novo. O bloqueio novo é recusado enquanto existir reserva ativa no período. | Regra mais simples de testar e de explicar. | Grupo |
-| 6 | RF19: decidir se haverá notificação simulada ou integração externa e definir eventos, contrato e comportamento em falha. Usar WireMock se uma integração HTTP for confirmada e implementada. | A decisão de escopo e o contrato ainda estão pendentes; não presumir uma integração inexistente. | Pendente |
+| 6 | RF19 da equipe / RF11 da disciplina: usar notificação HTTP após aprovação, rejeição e cancelamento; definir corpo em `NotificacaoReserva`; não reverter a reserva em erro ou timeout. | Integração implementada com `RestClient`; testes WireMock verificam 200/corpo, 500 e timeout. | Grupo |
 | 7 | Carga (premissa a validar): 50 usuários, 5 minutos, p95 abaixo de 500 ms, erro abaixo de 1%, ambiente local em containers. | A disciplina não define a carga. | Grupo |
 | 8 | E2E pela jornada completa da API com banco real; interface servida pelo Spring Boot consome os endpoints. Teste automatizado de navegador fica pendente. | O frontend integrado usa a API, mas não há runner E2E de navegador configurado. | Grupo |
 | 9 | Responsividade verificada manualmente em Chrome, Firefox e viewport de celular. Java 21 e PostgreSQL 16. | Escopo do E2E reduzido. | Grupo |
@@ -112,6 +112,6 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 
 ## Perguntas em aberto
 
-- Qual funcionalidade nova será desenvolvida com TDD ou BDD (candidatas: aprovação de recurso restrito ou bloqueio por período)?
+- O Gherkin e uma especificacao rastreavel, nao executada por runner BDD; confirmar com o professor se essa forma atende ao criterio de BDD.
 - O E2E pela API, sem navegador, atende ao critério de end-to-end da especificação? Confirmar com o professor.
 - As metas de carga da decisão 7 se confirmam depois da primeira medição?

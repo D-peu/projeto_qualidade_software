@@ -20,6 +20,9 @@ public class Material {
     @Column(nullable = false, unique = true)
     private String nome;
 
+    @Column(nullable = false)
+    private boolean restrito;
+
     public Material() {
     }
 
@@ -42,5 +45,13 @@ public class Material {
 
     public void setNome(String nome) {
         this.nome = nome;
+    }
+
+    public boolean isRestrito() {
+        return restrito;
+    }
+
+    public void setRestrito(boolean restrito) {
+        this.restrito = restrito;
     }
 }
