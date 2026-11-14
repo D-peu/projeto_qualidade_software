@@ -1,6 +1,6 @@
 # DF-04 — Inicialização falha em PostgreSQL vazio
 
-**Status:** corrigido e retestado localmente na branch `release/rc1-blocker-fixes`; aguarda revisão independente, CI remota e integração na `main`.  
+**Status:** corrigido no commit `d7039d5` e retestado nesta branch; aguarda revisão independente, CI remota e integração na `main`.
 **Severidade/prioridade:** alta / P1, bloqueava inicialização e demonstração.  
 **Rastreabilidade:** RNF-ISO-08; CP-158.
 
@@ -19,8 +19,8 @@ O Flyway executa antes do Hibernate. As migrations existentes pressupunham tabel
 ## Reteste e evidência
 
 - `AplicacaoBancoLimpoPostgresTest` usa Testcontainers com PostgreSQL vazio, valida HTTP 200 em `/api/auth/csrf` e verifica tabelas/coluna após as migrations.
-- `./mvnw -B clean verify` em Java 21.0.13+2: 200 testes, zero falhas, erros ou ignorados; JaCoCo 87,79% de linhas e 74,84% de branches.
-- Inicialização manual no PostgreSQL descartável também respondeu HTTP 200.
+- Em `2026-11-14 UTC`, `./mvnw -B clean verify` passou com 222 testes, zero falhas/erros/ignorados; JaCoCo 89,60% de linhas (991/1106) e 75,16% de branches (242/322). Esse comando executou `AplicacaoBancoLimpoPostgresTest`.
+- Smoke HTTP manual não foi repetido nesta sessão e não é usado como evidência atual.
 - A execução local não é CI da branch nem comprova que o commit foi integrado à `main`.
 
 ## Critério de encerramento
