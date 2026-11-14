@@ -1,7 +1,7 @@
 # Matriz única de rastreabilidade — entrega da disciplina
 
-**Revisão funcional verificada:** `release/rc1-blocker-fixes`, código no commit
-`2c83627` (14/11/2026). Esta RTM é a fonte canônica; não representa merge,
+**Revisão funcional verificada:** `release/rc1-blocker-fixes`, SHA
+`26f678f7e1b6b58a2984e75c841f13e0e3243ef0` (14/11/2026). Esta RTM é a fonte canônica; não representa merge,
 execução de CI na `main`, Quality Gate ou aceite de produção.
 
 ## Evidências desta revisão

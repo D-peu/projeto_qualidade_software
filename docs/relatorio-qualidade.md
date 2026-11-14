@@ -3,7 +3,7 @@
 Este resumo acompanha o [relatorio final](relatorio-final-qualidade.md) e a
 [decisao de qualidade](decisao-qualidade.md). A avaliacao vale para a branch
 `release/rc1-blocker-fixes`, SHA
-`d7ccbeeb37347ead150d911cb3b1723351568d2a`, com verificacoes locais executadas
+`26f678f7e1b6b58a2984e75c841f13e0e3243ef0`, com verificacoes locais executadas
 em 2026-11-14 UTC. Nao representa merge ou CI da `main`, analise SonarCloud ou
 prontidao para producao.
 

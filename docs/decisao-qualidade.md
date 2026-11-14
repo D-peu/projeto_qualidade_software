@@ -3,7 +3,7 @@
 **Data:** 2026-11-14 UTC
 **Repositorio:** [PabloQAntj/projeto_qualidade_software](https://github.com/WesMarquess/projeto_qualidade_software)
 **Branch avaliada:** `release/rc1-blocker-fixes`
-**SHA do codigo submetido a verificacao local:** `d7ccbeeb37347ead150d911cb3b1723351568d2a`
+**SHA submetido a verificacao local:** `26f678f7e1b6b58a2984e75c841f13e0e3243ef0`
 **PR:** [#20](https://github.com/WesMarquess/projeto_qualidade_software/pull/20), base `main`, ainda sem merge nesta verificacao.
 **Tag avaliada:** nenhuma.
 
@@ -90,5 +90,5 @@ evidencia de merge e CI verde na `main`, a decisao nao muda.
 
 Repositorio publico: https://github.com/WesMarquess/projeto_qualidade_software
 — branch avaliada: `release/rc1-blocker-fixes`, SHA
-`d7ccbeeb37347ead150d911cb3b1723351568d2a`; **tag avaliada: nenhuma**.
+`26f678f7e1b6b58a2984e75c841f13e0e3243ef0`; **tag avaliada: nenhuma**.
 Decisao: **BLOQUEAR**, ate resolver as condicoes acima.

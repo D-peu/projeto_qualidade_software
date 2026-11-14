@@ -2,7 +2,7 @@
 
 **Data da verificacao local:** 2026-11-14 UTC
 **Branch:** `release/rc1-blocker-fixes`
-**SHA testado:** `d7ccbeeb37347ead150d911cb3b1723351568d2a`
+**SHA testado:** `26f678f7e1b6b58a2984e75c841f13e0e3243ef0`
 **Decisao:** **BLOQUEAR** — ver [decisao de qualidade](decisao-qualidade.md).
 **Escopo:** verificacao local do estado desta branch; nao e aceite de producao,
 CI da `main`, analise SonarCloud ou revisao independente.

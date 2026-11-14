@@ -5,7 +5,7 @@
 - Repositorio publico: [WesMarquess/projeto_qualidade_software](https://github.com/WesMarquess/projeto_qualidade_software).
 - `main` consultada em 2026-11-14: `3d9b5fdd7468bf8d07c784965d790e897279c093`.
 - Branch avaliada: `release/rc1-blocker-fixes`, SHA local testado
-  `d7ccbeeb37347ead150d911cb3b1723351568d2a`.
+  `26f678f7e1b6b58a2984e75c841f13e0e3243ef0`.
 - PR #20 aberto para a `main`, ainda Draft e sem merge observado; o SHA remoto
   consultado antes do push desta revisao era `b1c40b7d0a4a4e1fb13c6e288904d6cd7a798afb`.
 - A auditoria anterior em clone limpo reproduziu a falha de inicializacao em
