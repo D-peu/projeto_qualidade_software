@@ -1,11 +1,14 @@
 package br.com.projeto_qualidade_software.projeto.api;
 
 import br.com.projeto_qualidade_software.projeto.api.dto.AcaoReservaRequest;
+import br.com.projeto_qualidade_software.projeto.api.dto.AlteracaoHorarioResponse;
 import br.com.projeto_qualidade_software.projeto.api.dto.AlterarHorarioReservaRequest;
 import br.com.projeto_qualidade_software.projeto.api.dto.DecisaoReservaRequest;
 import br.com.projeto_qualidade_software.projeto.api.dto.ReservaResponse;
 import br.com.projeto_qualidade_software.projeto.api.dto.SolicitarReservaRequest;
 import br.com.projeto_qualidade_software.projeto.entities.Administrador;
+import br.com.projeto_qualidade_software.projeto.entities.AuditoriaReserva;
+import br.com.projeto_qualidade_software.projeto.entities.AlteracaoHorarioAplicada;
 import br.com.projeto_qualidade_software.projeto.entities.Reserva;
 import br.com.projeto_qualidade_software.projeto.entities.Responsavel;
 import br.com.projeto_qualidade_software.projeto.entities.Sala;
@@ -14,6 +17,7 @@ import br.com.projeto_qualidade_software.projeto.enums.StatusReserva;
 import br.com.projeto_qualidade_software.projeto.enums.StatusSala;
 import br.com.projeto_qualidade_software.projeto.enums.TipoAprovadorReserva;
 import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
+import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
 import jakarta.persistence.EntityNotFoundException;
@@ -32,6 +36,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -119,6 +124,60 @@ class ReservaControllerTest {
                 .andExpect(jsonPath("$.inicio").value("2040-01-02T10:00:00"));
 
         verify(reservaService).buscarReserva(RESERVA_ID);
+    }
+
+    @Test
+    @DisplayName("CP-153 / RF14 / RN07 - Consulta eventos auditáveis da reserva")
+    void consultarAuditoriaRetornaAtorEstadoEData() throws Exception {
+        when(reservaService.consultarAuditoria(RESERVA_ID)).thenReturn(List.of(
+                new AuditoriaReserva(
+                        41L,
+                        reserva(StatusReserva.SOLICITADA),
+                        null,
+                        StatusReserva.SOLICITADA,
+                        SOLICITANTE_ID,
+                        PerfilUsuario.SOLICITANTE,
+                        SOLICITADO_EM
+                )
+        ));
+
+        mockMvc.perform(get("/api/reservas/{reservaId}/auditoria", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(41))
+                .andExpect(jsonPath("$[0].estadoAnterior").doesNotExist())
+                .andExpect(jsonPath("$[0].novoEstado").value("SOLICITADA"))
+                .andExpect(jsonPath("$[0].usuarioId").value(SOLICITANTE_ID))
+                .andExpect(jsonPath("$[0].perfilUsuario").value("SOLICITANTE"))
+                .andExpect(jsonPath("$[0].dataHora").value("2040-01-01T09:00:00"));
+
+        verify(reservaService).consultarAuditoria(RESERVA_ID);
+    }
+
+    @Test
+    @DisplayName("CP-154 / RF14 / RN07 - Consulta histórico imutável de alterações de horário")
+    void consultarHistoricoHorarioRetornaAntesDepoisResponsavelEData() throws Exception {
+        Responsavel responsavel = new Responsavel(
+                RESPONSAVEL_ID, "Responsável", "r@example.test", "hash", null, null
+        );
+        AlteracaoHorarioAplicada alteracao = new AlteracaoHorarioAplicada(
+                reserva(StatusReserva.APROVADA),
+                responsavel,
+                INICIO.minusDays(1),
+                FIM.minusDays(1),
+                INICIO,
+                FIM,
+                Instant.parse("2040-01-01T12:00:00Z")
+        );
+        when(reservaService.consultarHistorico(RESERVA_ID)).thenReturn(List.of(alteracao));
+
+        mockMvc.perform(get("/api/reservas/{reservaId}/historico-horario", RESERVA_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].responsavelId").value(RESPONSAVEL_ID))
+                .andExpect(jsonPath("$[0].inicioAnterior").value("2040-01-01T10:00:00"))
+                .andExpect(jsonPath("$[0].novoInicio").value("2040-01-02T10:00:00"))
+                .andExpect(jsonPath("$[0].aplicadaEm").value("2040-01-01T12:00:00Z"));
+
+        verify(reservaService).consultarHistorico(RESERVA_ID);
     }
 
     @Test
@@ -235,6 +294,30 @@ class ReservaControllerTest {
 
         verify(reservaService).aprovarReserva(
                 RESERVA_ID, RESPONSAVEL_ID, TipoAprovadorReserva.RESPONSAVEL
+        );
+    }
+
+    @Test
+    @DisplayName("CP-157 / RF02 / RF10 / RN05 - Administrador não pode aprovar reserva")
+    void administradorNaoPodeAprovarReserva() throws Exception {
+        when(reservaService.aprovarReserva(
+                RESERVA_ID, ADMINISTRADOR_ID, TipoAprovadorReserva.ADMINISTRADOR
+        )).thenThrow(new AcessoNegadoException(
+                "Somente Responsável pode aprovar reservas."
+        ));
+
+        mockMvc.perform(post("/api/reservas/{reservaId}/aprovacao", RESERVA_ID)
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "usuarioId": 4,
+                                  "tipoAprovador": "ADMINISTRADOR"
+                                }
+                                """))
+                .andExpect(status().isForbidden());
+
+        verify(reservaService).aprovarReserva(
+                RESERVA_ID, ADMINISTRADOR_ID, TipoAprovadorReserva.ADMINISTRADOR
         );
     }
 

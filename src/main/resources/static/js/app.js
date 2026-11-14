@@ -361,6 +361,7 @@
 
   const renderPendingRequests = () => {
     const pending = state.pendingReservations;
+    const canApprove = state.currentUser?.perfil === "RESPONSAVEL";
     const requestContent = state.loading
       ? `<div class="empty-state">Carregando solicitações do servidor…</div>`
       : state.apiError
@@ -388,7 +389,11 @@
                 </div>
                 <div class="request-actions">
                   <button class="button button-quiet button-small" type="button" data-action="reject-reservation" data-reservation-id="${reservation.id}">Rejeitar</button>
-                  <button class="button button-primary button-small" type="button" data-action="approve-reservation" data-reservation-id="${reservation.id}"${approvalBlocked ? " disabled" : ""}>Aprovar</button>
+                  ${
+                    canApprove
+                      ? `<button class="button button-primary button-small" type="button" data-action="approve-reservation" data-reservation-id="${reservation.id}"${approvalBlocked ? " disabled" : ""}>Aprovar</button>`
+                      : "<span>Aprovação exclusiva do Responsável.</span>"
+                  }
                 </div>
               </article>
             `;
@@ -501,7 +506,7 @@
         <div class="section-heading">
           <div>
             <h2 id="admin-requests-title">Solicitações pendentes</h2>
-            <p>Administradores também podem registrar decisões pela API.</p>
+            <p>A aprovação é exclusiva do Responsável; Administradores podem rejeitar solicitações.</p>
           </div>
         </div>
         ${renderPendingRequests()}

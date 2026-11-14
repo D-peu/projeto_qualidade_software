@@ -23,9 +23,28 @@ public class SalaService {
         return salaRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public List<Sala> listarSalas(StatusSala status, Integer capacidadeMinima) {
+        if (status == null && capacidadeMinima == null) {
+            return listarSalas();
+        }
+        return salaRepository.buscarPorFiltros(status, capacidadeMinima);
+    }
+
     @Transactional
     public Sala criarSala(Integer capacidade) {
         ContextoAutenticacao.exigirAdministrador();
         return salaRepository.save(new Sala(null, capacidade, StatusSala.DISPONIVEL));
+    }
+
+    @Transactional
+    public Sala alterarStatus(Long salaId, StatusSala status) {
+        ContextoAutenticacao.exigirAdministrador();
+        Sala sala = salaRepository.buscarPorIdComBloqueio(salaId)
+                .orElseThrow(() -> new jakarta.persistence.EntityNotFoundException(
+                        "Sala não encontrada: " + salaId
+                ));
+        sala.setStatusSala(status);
+        return salaRepository.save(sala);
     }
 }

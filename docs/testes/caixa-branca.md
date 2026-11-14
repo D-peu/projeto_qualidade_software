@@ -1,5 +1,11 @@
 # Casos de Teste de Caixa Branca
 
+## Evidência desta revisão
+
+Em 2026-11-14, `./mvnw -B clean verify` passou nesta branch: 222 testes Java,
+zero falhas/erros/ignorados; JaCoCo 89,60% de linhas (991/1106) e 75,16% de
+branches (242/322). A execução local não representa CI na `main`.
+
 ## 1. Escopo e premissas
 
 Estes casos são derivados da **estrutura do código** em `src/main/java`. Cada decisão (`if`, `||`, `&&`, ternário, `orElseThrow`) recebe pelo menos um caso que a torna verdadeira e outro que a torna falsa, para cobrir ramos. Em condições compostas, há casos que variam cada condição separadamente (critério MC/DC simplificado).
@@ -21,9 +27,12 @@ Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/services/SalaS
 |---|---|---|---|---|
 | CB-59 | `listarSalas` | Delega a consulta de todas as salas para `SalaRepository.findAll` e retorna o resultado | U | RF05 |
 
-### 1.2 Persistência da criação de sala (story 1.3; pré-implementação)
+### 1.2 Persistência da criação de sala (story 1.3; implementação verificada)
 
-Os casos abaixo devem ser implementados com o fluxo de criação da story 1.3 e PostgreSQL real. São especificações, não evidência de código já implementado ou executado. CB-43 e CB-44 permanecem restritos às invariantes existentes de `Sala`, mapeados a INV-05; não contam como cobertura da operação de criação.
+Os casos abaixo verificam a criação persistida da story 1.3 com PostgreSQL real e
+foram executados na suíte indicada acima. CB-43 e CB-44 permanecem restritos às
+invariantes existentes de `Sala`, mapeados a INV-05; não contam como cobertura
+da operação de criação.
 
 | ID | Fluxo | Verificação | Nível | Rastreabilidade |
 |---|---|---|---|---|
@@ -38,14 +47,14 @@ Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/services/Reser
 
 | ID | Método | Verificação | Nível | Requisito |
 |---|---|---|---|---|
-| CB-60 | `listarReservasPendentes` | Consulta o repository com status SOLICITADA usando método que ordena por `solicitadoEm` crescente | U | RF12 |
+| CB-60 | `listarReservasPendentes` | Consulta o repository com status SOLICITADA usando método que ordena por `solicitadoEm` crescente | U | RF10, RF15 |
 
 Arquivo: `src/main/java/br/com/projeto_qualidade_software/projeto/api/ReservaController.java`
 
 | ID | Método | Verificação | Nível | Requisito |
 |---|---|---|---|---|
-| CB-61 | `listarPendentes` | Retorna lista de pendências com HTTP 200 e converte as entidades para `ReservaResponse` | A | RF12 |
-| CB-62 | `listarPendentes` | Retorna lista vazia com HTTP 200 quando não há pendências | A | RF12 |
+| CB-61 | `listarPendentes` | Retorna lista de pendências com HTTP 200 e converte as entidades para `ReservaResponse` | A | RF10, RF15 |
+| CB-62 | `listarPendentes` | Retorna lista vazia com HTTP 200 quando não há pendências | A | RF10, RF15 |
 
 ### 2.2 Tabela de decisões
 
@@ -75,6 +84,7 @@ Os casos CB-02, CB-03, CB-07, CB-09, CB-10 e CB-11 (`orElseThrow`) não são des
 | CB-66 | `buscarProfessoresBloqueados` | Professor inexistente ou que não seja do tipo PROFESSOR é recusado; IDs válidos são bloqueados em ordem crescente | U | INV-02, INV-03 |
 | CB-67 | `buscarMateriaisBloqueados` | Material inexistente é recusado; IDs válidos são bloqueados em ordem crescente | U | INV-02, INV-03 |
 | CB-68 | Concorrência PostgreSQL | Solicitações paralelas para o mesmo professor ou material em salas diferentes aceitam no máximo uma reserva | I | INV-03 |
+| CB-83 | `alterarHorarioReserva` com PostgreSQL | Duas alterações simultâneas para o mesmo intervalo têm exatamente uma vencedora; a outra recebe conflito (CP-162) | I | RF06, RF08, RF09; INV-03 |
 
 ### 2.3 Condições compostas (MC/DC simplificado)
 
@@ -98,12 +108,12 @@ Os casos CB-02, CB-03, CB-07, CB-09, CB-10 e CB-11 (`orElseThrow`) não são des
 
 ### 2.4 Escolha do tipo de aprovador
 
-**`aprovarReserva`, L135, L137 e L139:** se RESPONSAVEL, senão se ADMINISTRADOR, senão erro.
+**`aprovarReserva`:** se RESPONSAVEL, carrega o Responsável e aprova; ADMINISTRADOR é recusado antes de buscar a reserva; tipo inválido também é recusado.
 
 | ID | `tipoAprovador` | Resultado | Nível | INV |
 |---|---|---|---|---|
 | CB-20 | RESPONSAVEL | Chama `buscarResponsavel` e `Reserva.aprovar(Responsavel)`; salva | U | INV-04 |
-| CB-21 | ADMINISTRADOR | Chama `buscarAdministrador` e `Reserva.aprovar(Administrador)`; salva | U | INV-04 |
+| CB-21 | ADMINISTRADOR | Lança `AcessoNegadoException` sem carregar reserva ou alterar estado | U, I | INV-04 |
 | CB-22 | nulo | Lança `AcessoNegadoException` | U | INV-04 |
 
 **`rejeitarReserva`, L154, L156 e L158:** a mesma estrutura.

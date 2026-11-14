@@ -74,20 +74,6 @@ class ReservaTest {
     }
 
     @Test
-    void aprovarPorAdministradorRegistraAprovacaoEAssociacaoCorreta() {
-        Reserva reserva = new Reserva();
-        Administrador administrador = new Administrador();
-        reserva.setResponsavel(new Responsavel());
-
-        reserva.aprovar(administrador);
-
-        assertEquals(StatusReserva.APROVADA, reserva.getStatus());
-        assertNull(reserva.getResponsavel());
-        assertSame(administrador, reserva.getAdministrador());
-        assertNotNull(reserva.getAprovadoEm());
-    }
-
-    @Test
     void rejeitarPorResponsavelRegistraRejeicaoEAssociacaoCorreta() {
         Reserva reserva = new Reserva();
         Responsavel responsavel = new Responsavel();
@@ -208,23 +194,6 @@ class ReservaTest {
     }
 
     @Test
-    void aprovarComAdministradorNuloLancaExcecaoSemAlterarReserva() {
-        Reserva reserva = new Reserva();
-        Responsavel responsavelAnterior = new Responsavel();
-        reserva.setResponsavel(responsavelAnterior);
-
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> reserva.aprovar((Administrador) null)
-        );
-
-        assertEquals(StatusReserva.SOLICITADA, reserva.getStatus());
-        assertSame(responsavelAnterior, reserva.getResponsavel());
-        assertNull(reserva.getAdministrador());
-        assertNull(reserva.getAprovadoEm());
-    }
-
-    @Test
     void rejeitarComResponsavelNuloLancaExcecaoSemAlterarReserva() {
         Reserva reserva = new Reserva();
         Administrador administradorAnterior = new Administrador();
@@ -256,28 +225,6 @@ class ReservaTest {
         assertSame(responsavelAnterior, reserva.getResponsavel());
         assertNull(reserva.getAdministrador());
         assertNull(reserva.getAprovadoEm());
-    }
-
-    @Test
-    void aprovarPorAdministradorForaDoEstadoSolicitadoPreservaReserva() {
-        Reserva reserva = new Reserva();
-        Responsavel responsavelAnterior = new Responsavel();
-        Administrador administradorAnterior = new Administrador();
-        LocalDateTime aprovadoEmAnterior = LocalDateTime.of(2040, 1, 1, 9, 0);
-        reserva.setStatus(StatusReserva.APROVADA);
-        reserva.setResponsavel(responsavelAnterior);
-        reserva.setAdministrador(administradorAnterior);
-        reserva.setAprovadoEm(aprovadoEmAnterior);
-
-        assertThrows(
-                IllegalStateException.class,
-                () -> reserva.aprovar(new Administrador())
-        );
-
-        assertEquals(StatusReserva.APROVADA, reserva.getStatus());
-        assertSame(responsavelAnterior, reserva.getResponsavel());
-        assertSame(administradorAnterior, reserva.getAdministrador());
-        assertEquals(aprovadoEmAnterior, reserva.getAprovadoEm());
     }
 
     @Test

@@ -87,7 +87,7 @@ SampleResult.setResponseData('Contadores de contencao inicializados', 'UTF-8')
             <collectionProp name="Arguments.arguments">
               <elementProp name="" elementType="HTTPArgument">
                 <boolProp name="HTTPArgument.always_encode">false</boolProp>
-                <stringProp name="Argument.value">{"salaId":${__P(salaId,0)},"solicitanteId":${__P(solicitanteId,0)},"tipoSolicitante":"PROFESSOR","inicio":"2055-01-01T10:00:00","fim":"2055-01-01T11:00:00"}</stringProp>
+                <stringProp name="Argument.value">{"salaId":${__P(salaId)},"solicitanteId":${__P(solicitanteId)},"tipoSolicitante":"PROFESSOR","inicio":"2055-01-01T10:00:00","fim":"2055-01-01T11:00:00"}</stringProp>
                 <stringProp name="Argument.metadata">=</stringProp>
               </elementProp>
             </collectionProp>

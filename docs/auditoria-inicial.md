@@ -4,6 +4,21 @@
 **Escopo:** requisitos RF01–RF19, segurança, testes, CI e entregáveis.
 **Restrição:** auditoria somente documental; nenhum código de produção foi alterado.
 
+> **Adendo da revisão da branch — 2026-11-14:** os resultados abaixo são
+> históricos, medidos em 12/11 e não descrevem o estado corrente. Nesta branch,
+> `./mvnw -B clean verify` foi executado com sucesso: 222 testes Java, zero
+> falhas/erros/ignorados; JaCoCo 89,60% de linhas (991/1106) e 75,16% de
+> branches (242/322). `node --test tests/*.test.js` passou com 19 testes.
+> `GET /api/reservas/pendentes` e as demais rotas da API foram incluídos em
+> testes sem sessão; somente o fluxo CSRF/login está liberado para início sem
+> identidade. Existem três testes WireMock (200/corpo, 500 e timeout), mas essa
+> integração HTTP externa não satisfaz RF19/RN11, que exige notificação interna.
+> A RTM canônica agora é [docs/RTM.md](./RTM.md); os caminhos anteriores são
+> redirecionamentos Markdown. O diagrama C4 de contexto e a revisão de
+> componentes/sequências ficam em [docs/arquitetura](./arquitetura/).
+> A execução não comprova CI na `main`, SonarCloud nem a conclusão das
+> funcionalidades ausentes. Verificação local realizada em 2026-11-14 UTC.
+
 ## 1. Fontes e execução
 
 Foram consultados [requisitos-funcionais.md](./prd/requisitos-funcionais.md), [openapi.yaml](./openapi.yaml), [pom.xml](../pom.xml), [ci.yml](../.github/workflows/ci.yml), a RTM em [docs/rtm.md](./rtm.md) e a RTM auxiliar [docs/prd/RTM.md](./prd/RTM.md). O caminho literal `docs/RTM.md` não existe; o arquivo raiz usa `rtm.md` em minúsculas.
@@ -69,7 +84,7 @@ O controle HTTP está configurado globalmente em [`AutenticacaoWebConfig.addInte
 4. RF12–RF14 aparecem agrupados como pendentes na matriz de implementação. RF12 segue sem fluxo de validação docente; RF14 tem campos de decisor/horários para aprovação, mas não histórico auditável. Logo, RF12 falta e RF14 é parcial, sem evidência suficiente para considerar nenhum deles concluído.
 5. A matriz chama RF19 de não definido, mas RF19/RN11 definem notificação simulada dentro da aplicação. O comportamento está faltando; a definição funcional já existe.
 6. [docs/rtm.md](./rtm.md) identifica a revisão-base `4cb9799` como referência funcional e `d555bae` como revisão corrente à época da consolidação. Suas evidências de execução são históricas. Esta auditoria executou a árvore de trabalho atual e encontrou 175 testes Java/16 Node; não se deve atribuir esses números a CI remoto ou commit específico.
-7. [gestao-defeitos.md](./gestao-defeitos.md) registra DF-03 como OpenAPI sem resposta 403 para alteração/cancelamento, mas o [openapi.yaml](./openapi.yaml) consultado nesta auditoria declara 403 para ambas as rotas. A divergência documental precisa de revalidação.
+7. O DF-03 antigo alegava que o OpenAPI omitia 403 em alteração/cancelamento; o arquivo já declarava esses códigos. Foi removido do registro de defeitos e documentado como alegação não confirmada em [gestao-defeitos.md](./gestao-defeitos.md).
 
 ## 5. Entregáveis
 
@@ -85,7 +100,7 @@ O controle HTTP está configurado globalmente em [`AutenticacaoWebConfig.addInte
 | Teste end-to-end | Existe E2E **pela API** em [ReservaApiPostgresE2ETest](../src/test/java/br/com/projeto_qualidade_software/projeto/integration/ReservaApiPostgresE2ETest.java), incluindo banco real e persistência. Não é E2E de navegador; autenticação é desabilitada nessa classe. |
 | WireMock | Não há dependência no [pom.xml](../pom.xml), cliente externo ou teste WireMock. É coerente com escopo atual sem integração externa; RF19 ainda precisa de notificações internas. |
 | Evidência TDD/BDD | Existe [evidencias-tdd-bdd.md](./testes/evidencias-tdd-bdd.md) e cenários em [reservas.feature](./testes/reservas.feature). Gherkin não roda em runner BDD; o documento não comprova ciclo histórico TDD. |
-| Registro de defeitos | Existe [gestao-defeitos.md](./gestao-defeitos.md), com IDs DF/LK e plano; não presume issue externa. Contém a divergência DF-03 sobre OpenAPI 403 apontada acima. |
+| Registro de defeitos | Existe [gestao-defeitos.md](./gestao-defeitos.md); o registro atual separa defeitos históricos confirmados, divergências e alegações não confirmadas. |
 | Relatório final de qualidade | Não localizado como entrega final. Há auditorias parciais em [auditoria-testes-ci.md](./auditoria-testes-ci.md) e [arquitetura-atam.md](./arquitetura-atam.md), além desta auditoria inicial; nenhuma é um relatório final aprovado. |
 
 ## 6. Pipeline, SonarCloud e qualidade dos testes

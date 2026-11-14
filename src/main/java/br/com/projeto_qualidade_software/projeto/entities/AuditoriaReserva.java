@@ -26,7 +26,7 @@ public class AuditoriaReserva {
     @Column(name = "novo_estado", nullable = false)
     private StatusReserva novoEstado;
 
-    @Column(name = "usuario_id", nullable = false)
+    @Column(name = "usuario_id")
     private Long usuarioId;
 
     @Enumerated(EnumType.STRING)

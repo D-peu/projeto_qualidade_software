@@ -53,6 +53,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -80,6 +81,9 @@ class ReservaServiceTest {
     @Autowired
     private AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaRepository;
 
+    @Autowired
+    private AuditoriaReservaRepository auditoriaReservaRepository;
+
     @MockitoSpyBean
     private AlteracaoHorarioAplicadaRepository alteracaoHorarioAplicadaSpy;
 
@@ -97,8 +101,8 @@ class ReservaServiceTest {
 
     @ParameterizedTest(name = "{0}")
     @MethodSource("aprovacaoPorRestricaoDoMaterial")
-    @DisplayName("CP-54/CP-55 / RF10 / INV-04 - Aprovação conforme restrição")
-    void approvalRespectsMaterialRestriction(
+    @DisplayName("CP-54/CP-55/CP-156 / RF10 / INV-04 - Somente Responsável aprova")
+    void approvalRequiresResponsibleRegardlessOfMaterialRestriction(
             String caso,
             boolean restrito,
             TipoAprovadorReserva tipoAprovador,
@@ -182,6 +186,17 @@ class ReservaServiceTest {
         assertEquals(StatusReserva.EXPIRADA, statusIn(reservas, anterior.getId()));
         assertEquals(StatusReserva.EXPIRADA, statusIn(reservas, noInicio.getId()));
         assertEquals(StatusReserva.SOLICITADA, statusIn(reservas, futura.getId()));
+        List<AuditoriaReserva> auditoriaAnterior =
+                auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(anterior.getId());
+        List<AuditoriaReserva> auditoriaNoInicio =
+                auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(noInicio.getId());
+        assertEquals(1, auditoriaAnterior.size());
+        assertEquals(1, auditoriaNoInicio.size());
+        assertEquals(StatusReserva.SOLICITADA, auditoriaAnterior.getFirst().getEstadoAnterior());
+        assertEquals(StatusReserva.EXPIRADA, auditoriaAnterior.getFirst().getNovoEstado());
+        assertEquals("SISTEMA", auditoriaAnterior.getFirst().getPerfilUsuario().name());
+        assertNull(auditoriaAnterior.getFirst().getUsuarioId());
+        assertEquals("SISTEMA", auditoriaNoInicio.getFirst().getPerfilUsuario().name());
 
         entityManager.clear();
         assertEquals(StatusReserva.EXPIRADA, reservaRepository.findById(anterior.getId())
@@ -207,6 +222,11 @@ class ReservaServiceTest {
         Reserva encontrada = reservaService.buscarReserva(vencida.getId()).orElseThrow();
 
         assertEquals(StatusReserva.EXPIRADA, encontrada.getStatus());
+        List<AuditoriaReserva> eventos =
+                auditoriaReservaRepository.findByReservaIdOrderByDataHoraAsc(vencida.getId());
+        assertEquals(1, eventos.size());
+        assertEquals(StatusReserva.EXPIRADA, eventos.getFirst().getNovoEstado());
+        assertEquals("SISTEMA", eventos.getFirst().getPerfilUsuario().name());
         entityManager.clear();
         assertEquals(StatusReserva.EXPIRADA, reservaRepository.findById(vencida.getId())
                 .orElseThrow().getStatus());
@@ -799,16 +819,22 @@ class ReservaServiceTest {
                         null
                 ),
                 Arguments.of(
+                        "não restrito aprovado por Responsável",
+                        false,
+                        TipoAprovadorReserva.RESPONSAVEL,
+                        null
+                ),
+                Arguments.of(
                         "restrito recusado para Administrador",
                         true,
                         TipoAprovadorReserva.ADMINISTRADOR,
                         AcessoNegadoException.class
                 ),
                 Arguments.of(
-                        "não restrito mantém aprovação por Administrador",
+                        "não restrito recusado para Administrador",
                         false,
                         TipoAprovadorReserva.ADMINISTRADOR,
-                        null
+                        AcessoNegadoException.class
                 )
         );
     }

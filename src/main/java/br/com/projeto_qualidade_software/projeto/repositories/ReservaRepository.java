@@ -100,16 +100,15 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("fim") LocalDateTime fim
     );
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
-            update Reserva reserva
-            set reserva.status = :expirada
+            select reserva from Reserva reserva
             where reserva.status = :solicitada
               and reserva.inicio <= :instante
+            order by reserva.inicio, reserva.id
             """)
-    int expirarSolicitacoesAte(
+    List<Reserva> buscarSolicitacoesVencidasComBloqueio(
             @Param("instante") LocalDateTime instante,
-            @Param("solicitada") StatusReserva solicitada,
-            @Param("expirada") StatusReserva expirada
+            @Param("solicitada") StatusReserva solicitada
     );
 }

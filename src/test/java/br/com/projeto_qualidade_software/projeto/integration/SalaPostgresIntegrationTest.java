@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -201,6 +202,70 @@ class SalaPostgresIntegrationTest {
                 .andExpect(status().isUnauthorized());
 
         assertEquals(totalInicial, salaRepository.count());
+    }
+
+    @Test
+    @DisplayName("CP-150/151 / RF04 / RF05 / RF11 - Atualiza estado e filtra catálogo")
+    void administradorAlteraEstadoEFiltraCatalogoDeSalas() throws Exception {
+        Sala salaDisponivel = salaRepository.saveAndFlush(
+                new Sala(null, 30, StatusSala.DISPONIVEL)
+        );
+        salaRepository.saveAndFlush(new Sala(null, 40, StatusSala.DISPONIVEL));
+        LoggedInSession admin = login(adminEmail);
+
+        mockMvc.perform(put("/api/salas/{salaId}/status", salaDisponivel.getId())
+                        .session(admin.session())
+                        .header("X-CSRF-Token", admin.csrfToken())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"statusSala":"EM_MANUTENCAO"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.statusSala").value("EM_MANUTENCAO"));
+
+        mockMvc.perform(get("/api/salas")
+                        .session(admin.session())
+                        .param("status", "EM_MANUTENCAO")
+                        .param("capacidadeMinima", "30"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].id").value(salaDisponivel.getId()));
+
+        assertEquals(
+                StatusSala.EM_MANUTENCAO,
+                salaRepository.findById(salaDisponivel.getId()).orElseThrow().getStatusSala()
+        );
+    }
+
+    @Test
+    @DisplayName("CP-152 / RF02 / RF04 / RF11 - Somente Administrador altera estado de sala")
+    void bloqueiaAlteracaoDeEstadoPorOutrosPerfisOuSemSessao() throws Exception {
+        Sala sala = salaRepository.saveAndFlush(new Sala(null, 30, StatusSala.DISPONIVEL));
+        LoggedInSession solicitante = login(applicantEmail);
+        LoggedInSession responsavel = login(responsibleEmail);
+        LoggedInSession anonimo = obterSessaoAnonima();
+
+        alterarStatus(sala.getId(), solicitante).andExpect(status().isForbidden());
+        alterarStatus(sala.getId(), responsavel).andExpect(status().isForbidden());
+        alterarStatus(sala.getId(), anonimo).andExpect(status().isUnauthorized());
+
+        assertEquals(
+                StatusSala.DISPONIVEL,
+                salaRepository.findById(sala.getId()).orElseThrow().getStatusSala()
+        );
+    }
+
+    private org.springframework.test.web.servlet.ResultActions alterarStatus(
+            Long salaId,
+            LoggedInSession session
+    ) throws Exception {
+        return mockMvc.perform(put("/api/salas/{salaId}/status", salaId)
+                .session(session.session())
+                .header("X-CSRF-Token", session.csrfToken())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"statusSala":"EM_MANUTENCAO"}
+                        """));
     }
 
     private org.springframework.test.web.servlet.ResultActions postarSala(

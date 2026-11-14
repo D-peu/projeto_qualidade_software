@@ -120,19 +120,6 @@ public class Reserva {
         registrarAprovacao();
     }
 
-    public void aprovar(Administrador administrador) {
-        if (administrador == null) {
-            throw new IllegalArgumentException(
-                    "É necessário informar o administrador pela aprovação."
-            );
-        }
-
-        validarSolicitadaParaDecisao();
-        this.responsavel = null;
-        this.administrador = administrador;
-        registrarAprovacao();
-    }
-
     public void rejeitar(Responsavel responsavel) {
         if (responsavel == null) {
             throw new IllegalArgumentException(

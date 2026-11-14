@@ -17,6 +17,13 @@ Feature: Conflitos e concorrência em reservas de salas
     Then ambas as solicitacoes sao aceitas
     And existem duas reservas persistidas para aqueles intervalos
 
+  Scenario: Apenas uma alteracao simultanea pode ocupar o mesmo horario
+    Given existem duas reservas solicitadas da mesma sala em horarios diferentes
+    When duas alteracoes simultaneas movem as reservas para o mesmo horario
+    Then uma alteracao e aceita
+    And a outra alteracao e rejeitada por conflito
+    And somente uma reserva persiste no horario de destino
+
   Scenario Outline: Uma reserva em estado que ocupa a sala bloqueia sobreposicao
     Given existe uma reserva na mesma sala com status <status>
     When uma solicitacao para um intervalo sobreposto e processada
@@ -43,9 +50,10 @@ Feature: Conflitos e concorrência em reservas de salas
   # Especificacao Gherkin vinculada a testes JUnit existentes; nao executada por runner BDD.
   # Testes: ReservaPostgresIntegrationTest.deveAceitarSomenteUmaReservaEmSolicitacoesConcorrentesComConflito
   #         ReservaPostgresIntegrationTest.deveAceitarSolicitacoesConcorrentesParaIntervalosNaoSobrepostos
+  #         ReservaPostgresIntegrationTest.deveAceitarNoMaximoUmaAlteracaoConcorrenteParaMesmoHorario
   #         ReservaPostgresIntegrationTest.deveBloquearSomenteEstadosQueOcupamASala
 
-  Scenario Outline: A aprovacao respeita a classificacao do material
+  Scenario Outline: Somente Responsavel aprova qualquer reserva
     Given uma reserva solicitada contem material com classificacao restrito igual a <restrito>
     When o perfil <aprovador> tenta aprovar a reserva
     Then o resultado da aprovacao e <resultado>
@@ -55,8 +63,7 @@ Feature: Conflitos e concorrência em reservas de salas
       | restrito | aprovador    | resultado          | estado      |
       | true     | RESPONSAVEL  | aprovada            | APROVADA    |
       | true     | ADMINISTRADOR| acesso negado       | SOLICITADA  |
-      | false    | ADMINISTRADOR| aprovada            | APROVADA    |
+      | false    | ADMINISTRADOR| acesso negado       | SOLICITADA  |
 
-  # Testes JUnit relacionados: ReservaServiceTest.approvalRespectsMaterialRestriction
-  # e ReservaPostgresIntegrationTest.deveRecusarAprovacaoDeMaterialRestritoPorAdministrador
-  # Rastreabilidade: RF10 / INV-04 / CP-54 / CP-55.
+  # Teste JUnit relacionado: ReservaServiceTest.approvalRequiresResponsibleRegardlessOfMaterialRestriction
+  # Rastreabilidade: RF02 / RF10 / RN05 / INV-04 / CP-54 / CP-55 / CP-156 / CP-157.

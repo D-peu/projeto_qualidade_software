@@ -347,7 +347,7 @@ test("backend exposes the read endpoints consumed by the frontend", () => {
 
   assert.match(salaController, /@RequestMapping\("\/api\/salas"\)/);
   assert.match(salaController, /@GetMapping/);
-  assert.match(salaController, /salaService\.listarSalas\(\)/);
+  assert.match(salaController, /salaService\.listarSalas\(status, capacidadeMinima\)/);
   assert.match(reservaController, /@RequestParam\("status"\) StatusReserva status/);
   assert.match(reservaController, /listarReservas\(status\)/);
 });

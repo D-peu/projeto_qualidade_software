@@ -1,10 +1,19 @@
 # Casos de Teste de Caixa Preta
 
+## Evidência desta revisão
+
+Em 2026-11-14, `./mvnw -B clean verify` terminou com `BUILD SUCCESS` (222 testes
+Java, zero falhas/erros/ignorados). O XML JaCoCo reportou 89,60% de linhas
+(991/1106) e 75,16% de branches (242/322). `node --test tests/*.test.js`
+passou com 19 testes e zero falhas. Os comandos foram executados nesta branch;
+não são resultado de CI nem da `main`. Os casos de execução listados abaixo
+formam o inventário e não significam que todos tenham sido automatizados.
+
 ## 1. Escopo e premissas
 
 Estes casos verificam a API de reservas **somente pelo contrato** (`docs/openapi.yaml` e `docs/api-reservas.md`) e pelas regras do `docs/testes/inventario-regras.md`. Nenhum resultado esperado depende da estrutura interna das classes.
 
-- **Ferramenta prevista:** REST-assured contra a aplicação conectada ao PostgreSQL (Testcontainers). Os casos também podem ser executados manualmente com `curl`.
+- **Ferramentas:** os testes HTTP atuais usam MockMvc e `TestRestTemplate` com PostgreSQL/Testcontainers; REST-assured não está no POM. Os casos também podem ser executados manualmente com `curl`.
 - **Contas para teste manual:** usar a tabela de contas demonstrativas do [README](../../README.md); os usuários de Professor, Coordenador, Responsável e Administrador só são semeados com `APP_SEED_ENABLED=true`. Casos automatizados devem criar seus próprios usuários sintéticos.
 - **Técnicas:** valor limite (VL), partição de equivalência (PE), tabela de decisão (TD) e transição de estado (TR).
 - **Identificação:** cada caso tem ID `CP-nn` e liga a uma linha do inventário (INV-nn). As transições têm IDs `TR-nn` e a tabela de decisão `TD-nn`.
@@ -182,14 +191,16 @@ Pré-condição: E no estado indicado. Requisição: P2 pede S1, 10:00 às 11:00
 
 Os casos CP-50 a CP-53 fixam a ordem das validações. Se a ordem mudar, os casos precisam ser revisados de propósito.
 
-## 7. Decisão sobre a reserva (INV-04 e INV-09)
+## 7. Decisão sobre a reserva (RF10, RF15, RN05, INV-04 e INV-09)
 
 Pré-condição: reserva SOLICITADA de P1 em S1. Endpoints: POST `/aprovacao` e POST `/rejeicao`.
 
 | ID | Técnica | Entrada | Resultado esperado |
 |---|---|---|---|
 | CP-54 | PE | R1 aprova (tipoAprovador RESPONSAVEL) | 200, status APROVADA, `responsavelId` igual a R1, `administradorId` nulo, `aprovadoEm` preenchido |
-| CP-55 | PE | A1 aprova (tipoAprovador ADMINISTRADOR) | 200, status APROVADA, `administradorId` igual a A1, `responsavelId` nulo. **Decisão pendente (RF10):** se só o Responsável puder aprovar, o esperado passa a ser recusa. |
+| CP-55 | PE | A1 aprova reserva sem material restrito | 403; a reserva permanece SOLICITADA e sem decisor |
+| CP-156 | PE | A1 aprova reserva com material restrito | 403; a reserva permanece SOLICITADA e sem decisor |
+| CP-157 | PE | Administrador autenticado tenta aprovar reserva sem material restrito, com CSRF válido | 403; a reserva permanece SOLICITADA e sem auditoria de aprovação |
 | CP-56 | PE | R1 rejeita | 200, status REJEITADA, `responsavelId` igual a R1, `aprovadoEm` nulo |
 | CP-57 | PE | A1 rejeita | 200, status REJEITADA, `administradorId` igual a A1 |
 | CP-58 | PE | Aprova reserva inexistente | 404 |
@@ -201,11 +212,6 @@ Pré-condição: reserva SOLICITADA de P1 em S1. Endpoints: POST `/aprovacao` e 
 | CP-64 | PE | `usuarioId` ausente | 400 |
 | CP-65 | VL | `usuarioId` igual a 0 | 400 |
 | CP-66 | PE | Rejeita reserva inexistente | 404 |
-| CP-124 | PE | Reserva SOLICITADA em S1; S1 passa a EM_MANUTENCAO antes da aprovação | 409; a reserva continua SOLICITADA e não é salva como APROVADA |
-| CP-125 | PE | E SOLICITADA sobrepõe reserva APROVADA da mesma sala | 409; E continua SOLICITADA |
-| CP-126 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo professor em outra sala | 409; E continua SOLICITADA |
-| CP-127 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo material em outra sala | 409; E continua SOLICITADA |
-| CP-128 | C | Duas reservas SOLICITADAS preexistentes e conflitantes são aprovadas simultaneamente no PostgreSQL | Exatamente uma fica APROVADA; a outra recebe 409 e permanece SOLICITADA |
 
 ## 8. Cancelamento e alteração por solicitante (INV-09 e INV-10)
 
@@ -215,11 +221,11 @@ Pré-condição: reserva SOLICITADA de P1 em S1. Endpoints: POST `/aprovacao` e 
 | CP-68 | PE | P1 cancela a própria reserva APROVADA | 200, status CANCELADA |
 | CP-69 | PE | Após CP-67, P2 pede o mesmo intervalo na mesma sala | 201 (o cancelamento libera o horário) |
 | CP-70 | PE | Após a rejeição da reserva, P2 pede o mesmo intervalo | 201 (a rejeição libera o horário) |
-| CP-71 | PE | P2 cancela a reserva de P1 | 403. **Lacuna de contrato:** o OpenAPI não declara 403 para este endpoint. |
+| CP-71 | PE | P2 cancela a reserva de P1 | 403, documentado no OpenAPI. |
 | CP-72 | PE | Cancela reserva inexistente | 404 |
 | CP-73 | PE | Cancelamento com `usuarioId` ausente | 400 |
 | CP-74 | VL | Cancelamento com `usuarioId` igual a 0 | 400 |
-| CP-75 | PE | P2 altera o horário da reserva de P1 | 403. **Lacuna de contrato:** o OpenAPI não declara 403 para este endpoint. |
+| CP-75 | PE | P2 altera o horário da reserva de P1 | 403, documentado no OpenAPI. |
 | CP-76 | PE | Altera horário de reserva inexistente | 404 |
 | CP-77 | PE | Alteração com `solicitanteId` ausente | 400 |
 
@@ -242,7 +248,7 @@ Pré-condição: reserva SOLICITADA de P1 em S1. Endpoints: POST `/aprovacao` e 
 | CP-85 | PE | Respostas 400, 403, 404 e 409 de qualquer endpoint | O corpo tem o campo `mensagem` com texto não vazio |
 | CP-86 | PE | Corpo do 201 de uma solicitação | Contém `id`, `salaId`, `solicitanteId`, `inicio`, `fim`, status SOLICITADA e `solicitadoEm` preenchido; `responsavelId`, `administradorId` e `aprovadoEm` nulos |
 | CP-87 | PE | Campos de data nas respostas | Formato date-time conforme o contrato |
-| CP-88 | PE | Revisão documental do `openapi.yaml` | O contrato declara 403 em cancelamento e alteração de horário. **Hoje não declara; é defeito de contrato.** |
+| CP-88 | PE | Revisão documental do `openapi.yaml` | O contrato declara 403 em cancelamento e alteração de horário. A conformidade automatizada entre contrato e respostas reais permanece pendente. |
 
 ## 11. Matriz de transição de estados (INV-09)
 
@@ -328,37 +334,83 @@ Os casos inválidos abaixo são aplicados tanto ao POST `/api/reservas` quanto a
 
 ## 13. Tabela de decisão da aprovação (INV-04, RN05)
 
-Cobre o perfil do aprovador e a classificação do recurso. **Decisão pendente (RF10):** a classificação de recurso restrito ainda não existe, então só as linhas de recurso não restrito podem ser executadas hoje.
+A classificação de recurso restrito é demonstrativa; não altera quem pode aprovar. Toda reserva nova só pode ser aprovada pelo Responsável.
 
 | ID | Perfil do aprovador | Recurso restrito | Resultado esperado | Situação |
 |---|---|---|---|---|
-| TD-01 | Responsável | Não | Aprova (200) | Executável (equivale ao CP-54) |
-| TD-02 | Administrador | Não | Aprova ou recusa, conforme a decisão do grupo | Executável (equivale ao CP-55) |
-| TD-03 | Responsável | Sim | Aprova (200) | Bloqueado: não há classificação de recurso restrito |
-| TD-04 | Administrador | Sim | Recusa, se a decisão for só o Responsável aprovar (RN05) | Bloqueado: não há classificação de recurso restrito |
+| TD-01 | Responsável | Não | Aprova (200) | Executável (CP-54) |
+| TD-02 | Administrador | Não | Recusa (403), reserva permanece SOLICITADA | Executável (CP-55/CP-157) |
+| TD-03 | Responsável | Sim | Aprova (200) | Executável; classificação não altera a regra |
+| TD-04 | Administrador | Sim | Recusa (403), reserva permanece SOLICITADA | Executável (CP-156) |
 
-## 14. Casos que não podem ser executados hoje
+## 14. Gestão de estado de sala, filtros e auditoria (RF02, RF04, RF05, RF11, RF14, RF15, RN07, INV-05, INV-08, INV-13 e INV-18)
+
+| ID | Técnica | Entrada | Resultado esperado |
+|---|---|---|---|
+| CP-150 | PE | GET `/api/salas?status=EM_MANUTENCAO&capacidadeMinima=30` | 200; somente salas em manutenção com capacidade mínima de 30 |
+| CP-151 | PE | Administrador envia `PUT /api/salas/{id}/status` com `EM_MANUTENCAO` | 200; estado persistido; nova solicitação e aprovação são recusadas; reservas existentes são preservadas |
+| CP-152 | PE | Solicitante, Responsável e sessão anônima tentam alterar estado da sala | 403 para os perfis autenticados sem permissão e 401 sem sessão; nenhuma alteração persistida |
+| CP-153 | PE | Responsável consulta `GET /api/reservas/{id}/auditoria`; Solicitante e sessão anônima tentam a mesma rota | Responsável recebe eventos; Solicitante recebe 403; sessão anônima recebe 401 |
+| CP-154 | PE | Equipe consulta `GET /api/reservas/{id}/historico-horario` após alteração aprovada | 200; horários anterior/novo, responsável e instante são retornados em ordem cronológica |
+| CP-155 | PE | Aplicar migration com evento de ação automática sem usuário associado | Migration permite ator `SISTEMA` com `usuarioId` nulo, preservando integridade do evento |
+| CP-159 | VL | Administrador envia alteração de estado sem informar `statusSala` | 400; serviço não altera a sala |
+| CP-124 | PE | Reserva SOLICITADA em S1; S1 passa a EM_MANUTENCAO antes da aprovação | 409; a reserva continua SOLICITADA e não é salva como APROVADA |
+| CP-125 | PE | E SOLICITADA sobrepõe reserva APROVADA da mesma sala | 409; E continua SOLICITADA |
+| CP-126 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo professor em outra sala | 409; E continua SOLICITADA |
+| CP-127 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo material em outra sala | 409; E continua SOLICITADA |
+| CP-128 | C | Duas reservas SOLICITADAS preexistentes e conflitantes são aprovadas simultaneamente no PostgreSQL | Exatamente uma fica APROVADA; a outra recebe 409 e permanece SOLICITADA |
+| CP-162 | C | Duas reservas SOLICITADAS da mesma sala, em horários diferentes, são alteradas simultaneamente para o mesmo intervalo no PostgreSQL | Exatamente uma alteração é persistida; a outra recebe conflito; somente uma reserva ocupa o intervalo de destino |
+
+### Proteção de rotas por sessão (RF01, RF02, INV-08)
+
+`AutenticacaoWebConfig` aplica o interceptor a `/api/**`. Sem autenticação, só `GET /api/auth/csrf` e `POST /api/auth/login` passam pela checagem de sessão; o login mutável ainda exige token CSRF válido. Arquivos estáticos (`/`, `/index.html`, `/css/**`, `/js/**`) não estão sob `/api/**`. Todas as outras rotas da API abaixo exigem sessão; os métodos mutáveis também exigem CSRF.
+
+| Grupo/rota protegida | Métodos | Teste automatizado sem autenticação |
+|---|---|---|
+| `/api/auth/me` | GET | `AutenticacaoRotasControllerTest.getApiSemSessaoRetorna401` |
+| `/api/auth/logout` | POST | `AutenticacaoRotasControllerTest.mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/salas` | GET, POST | Mesmos testes parametrizados; mutação envia CSRF anônimo válido |
+| `/api/salas/{salaId}/status` | PUT | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/professores`, `/api/materiais` | GET | `getApiSemSessaoRetorna401` |
+| `/api/reservas`, `/api/reservas?status=...`, `/api/reservas/pendentes`, `/api/reservas/{id}`, `/api/reservas/solicitante/{id}`, `/api/reservas/{id}/auditoria`, `/api/reservas/{id}/historico-horario` | GET | `getApiSemSessaoRetorna401`; inclui explicitamente `/api/reservas/pendentes` |
+| `/api/reservas` | POST | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/reservas/{id}/horario` | PUT | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/reservas/{id}/cancelamento`, `/aprovacao`, `/rejeicao`, `/iniciar`, `/concluir`, `/nao-comparecimento` | POST | `mutacaoComCsrfMasSemLoginRetorna401` |
+
+`AutenticacaoRotasControllerTest` executa 10 leituras e 11 mutações (com CSRF anônimo válido) e espera 401 em todas. `AutenticacaoControllerTest.loginCriaSessaoEPermiteRestaurarUsuarioAutenticado` confirma o acesso público ao fluxo de token/login e o acesso com sessão. Os testes não são um E2E de navegador; a delimitação acima é confirmada pelo interceptor e pelo matcher de rotas do Spring MVC.
+
+## 16. Casos parcialmente cobertos ou que não podem ser executados hoje
 
 | Assunto | Motivo | Linha do inventário |
 |---|---|---|
 | Bloqueios e manutenção por período | Não há agenda nem endpoint | INV-07 |
-| Bloqueios e manutenção por período | Não há agenda nem endpoint | INV-07 |
 | Autenticação e autorização por perfil | Login, sessão e regras de perfil têm testes Java; falta jornada E2E de navegador | INV-08 |
-| Auditoria e não exclusão | Não há auditoria | INV-13 |
-| Expiração automática e alterações pendentes | Previstas em RF15/RN12, mas ainda sem implementação | INV-09 |
-| Auditoria de alterações de horário e consulta do histórico | Não implementadas | INV-13 |
-| Notificação | Não há cliente de notificação | INV-16 |
+| Auditoria e não exclusão | Há trilha de estados e endpoint protegido; falta evidência completa de imutabilidade e de todos os tipos de alteração | INV-13 |
+| Alterações de horário | Falta solicitação pendente, aprovação do Responsável e revalidação/expiração do fluxo | INV-04, INV-09 |
+| Expiração | A expiração de solicitações novas ocorre sob demanda em consultas; não há agendador independente | INV-09 |
+| Validação de docentes | Não há fluxo de validação pelo Responsável | INV-18 |
+| Retirada e devolução de materiais | Não há fluxo implementado | INV-14 |
+| Relatórios de utilização e conflitos | Não há endpoints/relatórios implementados | INV-15 |
+| Notificação simulada interna | A integração HTTP existente diverge do RF19/RN11 do PRD | INV-16 |
+| Validação visual e jornada E2E | Testes de API/Node existem; faltam execução de navegador e validação visual/acessibilidade | INV-17 |
 
 Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não podem ser reportados como aprovados.
 
-## 15. Resumo
+## 17. Resumo
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-149) | 149 |
-| Transições de estado (TR-01 a TR-16) | 16 |
+| Casos de execução (CP-01 a CP-162) | 162 |
+| Transições de estado (TR-01 a TR-19) | 19 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
 | Executáveis com estado preparado no banco | CP-38, CP-45, CP-125–128 e CP-138–149 |
-| Com decisão pendente | CP-55, TD-02, TD-03 e TD-04 |
+| Com decisão pendente | Nenhuma regra de aprovação; pendências funcionais estão na seção 15 |
 | Com verificação adicional | CP-80 e CP-83 |
-| Lacunas de contrato | CP-71, CP-75 e CP-88 |
+| Casos novos com execução automatizada nesta revisão | CP-150–162 |
+| Rotas protegidas testadas sem sessão | 21 operações: 10 GET e 11 mutações com token CSRF anônimo válido |
+
+## 18. Instalação limpa e inicialização (RNF-ISO-08)
+
+| ID | Técnica | Entrada | Resultado esperado |
+|---|---|---|---|
+| CP-158 | PE | Iniciar a aplicação com PostgreSQL 16 vazio, sem tabelas ou histórico Flyway prévios | A aplicação inicia, `GET /api/auth/csrf` retorna 200 e as migrations criam as tabelas necessárias sem erro |
