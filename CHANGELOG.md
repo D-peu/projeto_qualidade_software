@@ -20,8 +20,11 @@ Esta seção reúne alterações da branch `release/rc1-blocker-fixes`. Ainda n�
 
 ### Verificação local
 
-- Java 21: `./mvnw -B clean verify` — 200 testes, sem falhas, erros ou ignorados; JaCoCo 87,79% de linhas e 74,84% de branches.
+- Java 21: `./mvnw -B clean verify` — 222 testes, sem falhas, erros ou ignorados; JaCoCo 89,60% de linhas e 75,16% de branches. Execução local em 2026-11-14 nesta branch.
 - Node: `node --test tests/*.test.js` — 19 testes aprovados.
+
+Estes numeros sao evidencias locais da branch `release/rc1-blocker-fixes`, nao
+resultados da `main` ou de um release publicado.
 
 ### Ainda não incluído como release
 

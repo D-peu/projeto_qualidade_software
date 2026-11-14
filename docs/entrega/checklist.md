@@ -1,41 +1,63 @@
-# Checklist de entrega e release
+# Checklist de entrega e bloqueadores
 
-## Identificação da avaliação
+## Identificacao da avaliacao
 
-- Repositório: `WesMarquess/projeto_qualidade_software`.
-- Revisão da `main` auditada em clone limpo: `3d9b5fdd7468bf8d07c784965d790e897279c093`.
-- Correções em avaliação: branch `release/rc1-blocker-fixes`, commit `86d4894c0fdfd7153c7c1e65b69f6f5fa62ff8cc`, derivada do commit auditado. O PR #20 está em Draft; o resultado não é CI nem revisão da `main`.
-- O checklist externo original reproduziu `docker compose up -d`, `./mvnw spring-boot:run`, `./mvnw -B verify` e `node --test tests/*.test.js` no clone limpo. A falha de inicialização constatada está registrada como DF-04.
-- Validação local: Java 21.0.13+2, `./mvnw -B clean verify` passou (200 testes; zero falhas/erros/ignorados); JaCoCo 87,79% de linhas e 74,84% de branches; Node, 19 testes aprovados. A CI do PR #20 também passou no commit indicado abaixo.
+- Repositorio publico: [WesMarquess/projeto_qualidade_software](https://github.com/WesMarquess/projeto_qualidade_software).
+- `main` consultada em 2026-11-14: `3d9b5fdd7468bf8d07c784965d790e897279c093`.
+- Branch avaliada: `release/rc1-blocker-fixes`, SHA local testado
+  `d7ccbeeb37347ead150d911cb3b1723351568d2a`.
+- PR #20 aberto para a `main`, ainda Draft e sem merge observado; o SHA remoto
+  consultado antes do push desta revisao era `b1c40b7d0a4a4e1fb13c6e288904d6cd7a798afb`.
+- A auditoria anterior em clone limpo reproduziu a falha de inicializacao em
+  banco sem schema. DF-04 registra a causa e a migration/teste que corrigem o
+  problema nesta branch. Esta revisao local executou `./mvnw -B clean verify`
+  em 2026-11-14: 222 testes Java, zero falhas/erros/ignorados; JaCoCo 89,60%
+  linhas e 75,16% branches. `node --test tests/*.test.js`: 19 aprovados.
+- Esses resultados sao locais e da branch; nao sao CI da `main`.
 
-“Existe” indica que o artefato está no repositório ou foi produzido nesta branch. “Atualizado” avalia se ele representa a revisão em avaliação e se a evidência está acessível; não significa que o requisito funcional esteja completo.
+“Existe” indica artefato no repositorio ou resultado registrado. “Atualizado”
+indica que o conteudo reflete a revisao avaliada; nao significa que o requisito
+funcional esteja completo.
 
-| Item | Existe | Atualizado | Caminho/evidência |
+| Item | Existe | Atualizado | Caminho/evidencia |
 |---|---|---|---|
-| Repositório e histórico de revisão por pares | Sim | Parcial; não há review desta correção | Histórico Git e PRs existentes; PR #19 foi mergeado sem reviews registradas. A revisão independente da branch de correção ainda precisa ocorrer. |
-| Aplicação executável | Sim | Corrigida localmente; não integrada na `main` | [README](../../README.md), migration [V0_1](../../src/main/resources/db/migration/V0_1__bootstrap_migration_dependencies.sql), teste [AplicacaoBancoLimpoPostgresTest](../../src/test/java/br/com/projeto_qualidade_software/projeto/integration/AplicacaoBancoLimpoPostgresTest.java) e [DF-04](../defeitos/DF-04-inicializacao-banco-limpo.md). |
-| README e documentação da API | Sim | Parcial; CI do PR passou, revisão humana pendente | [README](../../README.md), [guia da API](../api-reservas.md) e [OpenAPI](../openapi.yaml). |
-| RTM requisito–risco–teste–evidência | Sim | Parcial; há pendências funcionais e evidências históricas | [rtm.md](../rtm.md). |
-| Diagramas de contexto, componentes e sequências | Sim | Parcial; presentes, mas não atualizados/validados integralmente nesta correção | [Arquitetura/ATAM](../arquitetura-atam.md), [componentes](../prd/modelagem/estatica/componentes.md) e [fluxos de sequência](../prd/fluxos-sequencia.md). |
-| Plano e relatório de testes | Sim | Atualizado; CI passou no commit indicado, revisão humana pendente | [Estratégia](../testes/estrategia.md), [caixa-preta](../testes/caixa-preta.md), [caixa-branca](../testes/caixa-branca.md), [relatório final de qualidade](../relatorio-qualidade.md). |
-| Pipeline de CI | Sim | Verde no PR #20; ainda não executado em commit integrado na `main` | [Workflow](../../.github/workflows/ci.yml) e [execução 43527836793](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43527836793), no commit `86d4894c0fdfd7153c7c1e65b69f6f5fa62ff8cc`. |
-| SonarCloud / Quality Gate | Sim para revisão anterior | Sem análise nesta execução; Quality Gate do commit corrigido indisponível | A etapa Analyze with SonarCloud foi ignorada na [execução do PR #20](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43527836793). Dashboard: https://sonarcloud.io/dashboard?id=WesMarquess_projeto_qualidade_software&branch=main. |
-| JaCoCo | Sim | Relatório local e artifact da CI do PR #20 disponíveis; não são do commit final em `main` | `target/site/jacoco/`; artifact `test-reports-43527836793-1` na [execução 43527836793](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43527836793). |
-| Plano e resultado de carga | Sim | Baseline local atual; exploratório, não produção | [Guia JMeter](../testes/jmeter/README.md), [resultado-01.md](../performance/resultado-01.md) e JTL compactados em [evidências brutas](../performance/evidencias/resultado-01/). |
-| Registro de defeitos | Sim | Atualizado nesta branch; aguardando revisão/integração | [Gestão de defeitos](../gestao-defeitos.md) e [diretório de defeitos](../defeitos/README.md). |
-| Relatório final de qualidade | Sim | Atualizado com a verificação local; não é avaliação de CI | [relatorio-qualidade.md](../relatorio-qualidade.md). |
-| Changelog | Sim | Rascunho `Unreleased`; ainda não há versão publicada | [CHANGELOG.md](../../CHANGELOG.md). |
-| Índice de evidências ligado ao commit da tag | Não | Não pode ser criado com links reais antes da tag/CI | Aguardar SHA final, run do CI, artifact JaCoCo e Quality Gate desse commit. Não inserir placeholders como se fossem evidências. |
-| Tag anotada `v1.0.0-rc1` | Não | Corretamente não criada | A `main` precisa receber as correções, ter CI verde e cumprir os bloqueadores abaixo. Nunca mover tag publicada; correção pós-tag exigiria `rc2`. |
+| Repositorio e revisao por pares | Sim | Revisao independente desta branch pendente; PR #20 aberto em Draft | [PR #20](https://github.com/WesMarquess/projeto_qualidade_software/pull/20), historico Git |
+| Aplicacao executavel | Sim | Inicializacao limpa corrigida e testada nesta branch; merge/main nao verificados | [README](../../README.md), migration `V0_1`, [AplicacaoBancoLimpoPostgresTest](../../src/test/java/br/com/projeto_qualidade_software/projeto/integration/AplicacaoBancoLimpoPostgresTest.java), [DF-04](../defeitos/DF-04-inicializacao-banco-limpo.md) |
+| README e documentacao da API | Sim | Atualizados para rotas, erros e limitacoes atuais | [README](../../README.md), [guia API](../api-reservas.md), [OpenAPI](../openapi.yaml) |
+| RTM requisito–risco–teste–evidencia | Sim | Matriz unica atualizada; requisitos parciais/pendentes declarados | [docs/RTM.md](../RTM.md); caminhos antigos sao aliases |
+| Diagramas de contexto, componentes e sequencias | Sim | Contexto e fluxos revisados para refletir o codigo e as lacunas | [C4 contexto](../arquitetura/c4-contexto.md), [componentes](../prd/modelagem/estatica/componentes.md), [sequencias](../prd/fluxos-sequencia.md) |
+| Plano e relatorio de testes | Sim | Atualizados com 222 Java/19 Node e limitacoes de execucao | [estrategia](../testes/estrategia.md), [caixa-preta](../testes/caixa-preta.md), [caixa-branca](../testes/caixa-branca.md), [relatorio final](../relatorio-final-qualidade.md) |
+| Pipeline de CI | Sim | Existe; run verde conhecido anterior a esta revisao foi no SHA `b1c40b7`; CI do SHA atual deve ser verificada apos push | [workflow](../../.github/workflows/ci.yml), [run #43528184691](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43528184691) |
+| JaCoCo | Sim | Relatorio local desta branch: 89,60% linhas/75,16% branches; artifact remoto citado e de SHA anterior | `target/site/jacoco/`; artifact do [run #43528184691](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43528184691) |
+| SonarCloud / Quality Gate | Configurado condicionalmente | Analise e Quality Gate do SHA avaliado nao comprovados | [Dashboard do projeto](https://sonarcloud.io/dashboard?id=WesMarquess_projeto_qualidade_software&branch=main); variaveis/secrets e resultado dependem da configuracao da equipe |
+| Plano e resultado de carga | Sim | Plano existe; resultado e historico, nao reproduzido nesta sessao | [Plano JMeter](../testes/jmeter/README.md), [resultado historico](../performance/resultado-01.md); `target/jmeter/` ausente |
+| Registro de defeitos | Sim | Corrigidos historicos separados de pendencias declaradas | [gestao](../gestao-defeitos.md), [defeitos](../defeitos/README.md) |
+| Relatorio final de qualidade | Sim | Atualizado com os resultados e riscos da branch | [relatorio final](../relatorio-final-qualidade.md), [resumo](../relatorio-qualidade.md) |
+| Changelog | Sim | Secao `Unreleased`; sem release/tag | [CHANGELOG.md](../../CHANGELOG.md) |
+| Indice de evidencias associado a commit de tag | Nao | Sem tag/commit candidato, CI e artifact que possam ser vinculados | Nao criar placeholders como se fossem evidencias |
+| Tag anotada `v1.0.0-rc1` | Nao | Corretamente nao criada | Aguardar criterios abaixo; tag publicada nunca deve ser movida |
 
 ## Bloqueadores, em ordem
 
-1. **Requisitos funcionais ainda pendentes ou parciais.** O PRD ainda aponta lacunas em gestão/CRUD de recursos e usuários, pesquisa/filtros completos, manutenção por período, aprovação de alterações de horário, validação docente, retirada/devolução de materiais, relatórios e notificações simuladas internas. Consulte as situações RF em [requisitos-funcionais.md](../prd/requisitos-funcionais.md) e a análise em [relatorio-qualidade.md](../relatorio-qualidade.md). Não declarar conformidade integral nem RC enquanto esses itens obrigatórios não forem resolvidos ou formalmente delimitados pela equipe.
-2. **Revisão por pares da correção não realizada.** A correção precisa de um commit/PR revisado por outra pessoa; não foi feito commit direto na `main`.
-3. **CI em `main` e SonarCloud pendentes.** A CI do PR #20 passou no commit `86d4894`, mas isso não é execução na `main`; a etapa SonarCloud foi ignorada e não há Quality Gate do commit corrigido.
-4. **Inicialização limpa corrigida somente nesta branch.** DF-04 passou em Testcontainers e no smoke local, mas o desbloqueio só vale para release depois da revisão, integração à `main` e CI verde no commit que contém a migration/teste.
-5. **Pacote de evidências de release ainda não pode ser fechado.** Sem commit de tag e run de CI associado, não há URL/artifact JaCoCo ou Quality Gate que satisfaça o requisito de apontar para o commit da tag. Criar o índice apenas após existir essa evidência.
+1. **Requisitos funcionais parciais ou pendentes.** RTM #1–#4, #6, #8–#13
+   registra os limites e evidencias; permanecem, entre outros, aprovacao de
+   alteracoes de horario, pedidos pendentes conflitantes conforme RN03,
+   manutencao por periodo, retirada/devolucao, auditoria completa, notificacao
+   interna, relatorios e validacao de interface em navegador.
+2. **Revisao independente pendente.** O PR #20 segue Draft; obter revisao de
+   outra pessoa antes do merge.
+3. **Merge e CI da `main` pendentes.** `main` foi consultada no SHA
+   `3d9b5fdd7468bf8d07c784965d790e897279c093`; a CI verde conhecida de
+   `b1c40b7` nao e CI do SHA atual nem da `main` apos integracao.
+4. **SonarCloud/Quality Gate nao comprovado.** A configuracao pode ser
+   condicional; executar analise no commit integrado e confirmar o gate.
+5. **Pacote de evidencias de release nao pode ser fechado.** Sem commit/tag
+   validos e workflow/artifact no SHA exato, nao criar indice final nem tag.
 
-## Decisão atual
+## Decisao atual
 
-**Não criar nem enviar `v1.0.0-rc1` agora.** O bloqueio técnico de banco vazio foi corrigido e a CI do PR passou no commit indicado, mas o PR continua em Draft, sem revisão humana; a `main` permanece no SHA auditado, e os bloqueadores funcionais e de SonarCloud continuam. Reavaliar somente após resolver os requisitos pendentes, obter revisão independente, integrar e validar o commit final na `main`.
+**BLOQUEAR.** Nao criar nem enviar `v1.0.0-rc1`. Reavaliar somente apos
+resolver ou delimitar formalmente as pendencias, obter revisao independente,
+integrar na `main`, verificar CI verde no SHA integrado e avaliar o Quality
+Gate. A decisao de qualidade detalha criterios, riscos e responsabilidades em
+[docs/decisao-qualidade.md](../decisao-qualidade.md).
