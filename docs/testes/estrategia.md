@@ -4,6 +4,12 @@
 
 Esta estratégia orienta a verificação da API de reservas e recursos e a evolução dos testes conforme os requisitos do PRD forem implementados. A matriz abaixo não considera requisito pendente como comportamento existente.
 
+**Estado verificado nesta branch (2026-11-14):** `./mvnw -B clean verify`
+passou com 222 testes Java; cobertura JaCoCo de 89,60% linhas e 75,16% branches.
+`node --test tests/*.test.js` passou com 19 testes. Estes resultados locais não
+representam CI na `main`. A [RTM única](../RTM.md) registra os 14 requisitos,
+os riscos, testes, evidências e as pendências.
+
 Estão no escopo de verificação da API descrita em `docs/openapi.yaml`:
 
 - `POST /api/reservas`: solicitar reserva;
@@ -22,12 +28,12 @@ Ficam fora da validação funcional automatizada completa da implementação atu
 |---|---|---|
 | Unitário | JUnit 5, incluindo `@ParameterizedTest`, e Mockito | Verificar validação de intervalo e transições de `Reserva.aprovar` e `Reserva.rejeitar`; cobrir casos válidos, inválidos e limites sem iniciar a aplicação. Isolar repositórios com doubles de teste. |
 | Integração | JUnit 5 e Testcontainers com PostgreSQL 16 | Exercitar serviço, repositórios, transações, consultas de conflito e locks usando o banco real da estratégia. Verificar `ReservaRepository.contarConflitos`, `buscarPorIdComBloqueio` e `SalaRepository.buscarPorIdComBloqueio`. |
-| API caixa-preta | REST-assured | Enviar HTTP pelos endpoints publicados e validar códigos, cabeçalhos, corpos e erros definidos no OpenAPI, sem depender da estrutura interna das classes. |
-| E2E | REST-assured, aplicação completa e PostgreSQL em Testcontainers | Executar jornadas pela API, da solicitação até consulta e, quando aplicável, alteração, cancelamento ou decisão, confirmando o estado persistido. O frontend servido pelo Spring Boot consome a API; os testes Node validam o contrato do cliente, mas não substituem teste E2E de navegador, que ainda não está automatizado. |
-| Concorrência | JUnit 5, REST-assured e Testcontainers com PostgreSQL | Disparar solicitações conflitantes em paralelo para a mesma sala e intervalo; conferir resultado final no banco e evidenciar que não houve dupla reserva (RF09 e RN03). |
+| API caixa-preta | MockMvc e `TestRestTemplate` | Exercitar endpoints HTTP, respostas e persistência nos cenários cobertos. REST-assured não está no POM. A proteção anônima das rotas é testada pelo MockMvc; cobertura total de contrato automatizada não existe. |
+| E2E | Aplicação Spring Boot, `TestRestTemplate`/MockMvc e PostgreSQL em Testcontainers | Executar jornadas selecionadas pela API e confirmar estado persistido. Existem testes HTTP/PostgreSQL com sessão e CSRF para operações específicas; não há E2E de navegador. |
+| Concorrência | JUnit 5, `ExecutorService`, `CountDownLatch` e Testcontainers com PostgreSQL 16 | Testes de integração concorrente cobrem criação, aprovação e alteração de horário, além de docente/material em salas diferentes; as operações verificam o banco real e aceitam no máximo um conflito. |
 | Segurança | JUnit 5, MockMvc e testes do serviço | Login com credenciais válidas/inválidas, sessão e logout, token CSRF, perfil × operação e posse da reserva. Gestão de contas e recuperação de senha permanecem pendentes. |
 | Carga | Apache JMeter | Medir consultas, criação sem conflito e contenção por sala/intervalo; entregar plano e resultado. Metas experimentais provisórias: 50 usuários virtuais, 5 minutos, p95 abaixo de 500 ms e erros abaixo de 1%. Não são requisitos oficiais aprovados, precisam ser validadas e os resultados podem não atingi-las. |
-| Integrações externas | WireMock e `RestClient` | Após aprovar, rejeitar ou cancelar, enviar `NotificacaoReserva` para `notificacao.url`. WireMock verifica resposta 200, erro 500, timeout e corpo; falhas não revertem o estado persistido. |
+| Integrações externas | WireMock e `RestClient` | O cliente HTTP atual envia `NotificacaoReserva` após aprovação, rejeição ou cancelamento. `ReservaNotificacaoWireMockIntegrationTest` verifica HTTP 200/corpo, erro 500 e timeout; falhas não revertem o estado. Isso não atende RF19/RN11, que exige notificação simulada dentro do sistema, sem serviço externo. |
 
 Os testes de API devem cobrir os resultados documentados no OpenAPI, incluindo `201` na solicitação aceita e erros `400`, `403`, `404` ou `409` quando aplicáveis. O contrato deve declarar as propriedades obrigatórias da resposta `Reserva` e exemplos de erro para 400, 403, 404 e 409.
 
@@ -47,7 +53,7 @@ Para a suíte de verificação, os critérios acadêmicos de saída são:
 
 - cobertura mínima de 80% de linhas e 70% de branches no JaCoCo;
 - zero defeito crítico em aberto na avaliação final, e zero bug ou vulnerabilidade crítica no SonarCloud;
-- 100% dos requisitos críticos RF07 a RF11 registrados na RTM (`docs/rtm.md`), cada um ligado a cenários e evidência ou status de execução;
+- 100% dos seis requisitos críticos registrados na [RTM canônica](../RTM.md), cada um ligado a risco, teste e evidência ou lacuna explicitada;
 - plano e resultado de teste de carga entregues, sem declarar aprovado um limite de desempenho ainda não validado.
 
 **Defeito crítico:** dupla reserva aceita, acesso indevido, perda ou corrupção de dados, aplicação que não sobe ou não reserva; no SonarCloud, vulnerabilidade ou bug de severidade blocker ou crítica.
@@ -108,7 +114,7 @@ Os relatórios devem mostrar o resultado por requisito (passou, falhou, bloquead
 - `docs/testes/inventario-regras.md`: regras, riscos e estado atual.
 - `docs/testes/caixa-preta.md`: casos pelo contrato.
 - `docs/testes/caixa-branca.md`: casos por decisões do código e prova de proteção.
-- `docs/rtm.md`, `docs/defeitos/`, `docs/seguranca/matriz-autorizacao.md` e `docs/testes/mutacao-manual.md`: a produzir.
+- `docs/RTM.md` é a única fonte canônica; `docs/rtm.md` e `docs/prd/RTM.md` são caminhos de compatibilidade. O registro de defeitos está em `docs/gestao-defeitos.md`.
 
 ## Perguntas em aberto
 

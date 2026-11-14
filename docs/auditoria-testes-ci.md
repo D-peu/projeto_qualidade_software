@@ -4,6 +4,21 @@
 **Escopo:** configuração Maven, workflow GitHub Actions, testes Java e Node, Testcontainers/PostgreSQL, JaCoCo, SonarCloud, evidências e documentação.
 **Restrição respeitada:** nenhum teste foi executado para esta revisão documental; foram consultadas configurações e evidências de execuções já existentes.
 
+> **Adendo da branch de correção — 2026-11-14:** a auditoria abaixo é um
+> retrato histórico da configuração e dos resultados conhecidos em 11/11. Nesta
+> data foi executado `./mvnw -B clean verify` na branch
+> `release/rc1-blocker-fixes`: `BUILD SUCCESS`, 222 testes Java, zero falhas,
+> erros ou ignorados; JaCoCo 991/1106 linhas (89,60%) e 242/322 branches
+> (75,16%). `node --test tests/*.test.js` passou com 19 testes. Os comandos não
+> são CI nem resultados da `main`. WireMock está presente no POM e
+> `ReservaNotificacaoWireMockIntegrationTest` cobre HTTP 200/corpo, 500 e
+> timeout; a integração externa continua divergente do requisito de notificação
+> interna. `target/jmeter/` não existe nesta sessão; a medição disponível é
+> histórica e versionada em `docs/performance/resultado-01.md`. A causa do
+> aviso de encerramento do fork Surefire não foi confirmada. Estes fatos
+> atualizam o estado atual sem reatribuir ao snapshot de 11/11 seus números ou
+> conclusões.
+
 ## 1. Critérios de classificação
 
 - **Implementado e comprovado:** configuração/código existe e há evidência identificável de execução ou resultado.

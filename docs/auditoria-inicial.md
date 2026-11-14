@@ -4,6 +4,21 @@
 **Escopo:** requisitos RF01–RF19, segurança, testes, CI e entregáveis.
 **Restrição:** auditoria somente documental; nenhum código de produção foi alterado.
 
+> **Adendo da revisão da branch — 2026-11-14:** os resultados abaixo são
+> históricos, medidos em 12/11 e não descrevem o estado corrente. Nesta branch,
+> `./mvnw -B clean verify` foi executado com sucesso: 222 testes Java, zero
+> falhas/erros/ignorados; JaCoCo 89,60% de linhas (991/1106) e 75,16% de
+> branches (242/322). `node --test tests/*.test.js` passou com 19 testes.
+> `GET /api/reservas/pendentes` e as demais rotas da API foram incluídos em
+> testes sem sessão; somente o fluxo CSRF/login está liberado para início sem
+> identidade. Existem três testes WireMock (200/corpo, 500 e timeout), mas essa
+> integração HTTP externa não satisfaz RF19/RN11, que exige notificação interna.
+> A RTM canônica agora é [docs/RTM.md](./RTM.md); os caminhos anteriores são
+> redirecionamentos Markdown. O diagrama C4 de contexto e a revisão de
+> componentes/sequências ficam em [docs/arquitetura](./arquitetura/).
+> A execução não comprova CI na `main`, SonarCloud nem a conclusão das
+> funcionalidades ausentes. Verificação local realizada em 2026-11-14 UTC.
+
 ## 1. Fontes e execução
 
 Foram consultados [requisitos-funcionais.md](./prd/requisitos-funcionais.md), [openapi.yaml](./openapi.yaml), [pom.xml](../pom.xml), [ci.yml](../.github/workflows/ci.yml), a RTM em [docs/rtm.md](./rtm.md) e a RTM auxiliar [docs/prd/RTM.md](./prd/RTM.md). O caminho literal `docs/RTM.md` não existe; o arquivo raiz usa `rtm.md` em minúsculas.

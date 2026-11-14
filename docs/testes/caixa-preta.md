@@ -13,7 +13,7 @@ formam o inventário e não significam que todos tenham sido automatizados.
 
 Estes casos verificam a API de reservas **somente pelo contrato** (`docs/openapi.yaml` e `docs/api-reservas.md`) e pelas regras do `docs/testes/inventario-regras.md`. Nenhum resultado esperado depende da estrutura interna das classes.
 
-- **Ferramenta prevista:** REST-assured contra a aplicação conectada ao PostgreSQL (Testcontainers). Os casos também podem ser executados manualmente com `curl`.
+- **Ferramentas:** os testes HTTP atuais usam MockMvc e `TestRestTemplate` com PostgreSQL/Testcontainers; REST-assured não está no POM. Os casos também podem ser executados manualmente com `curl`.
 - **Contas para teste manual:** usar a tabela de contas demonstrativas do [README](../../README.md); os usuários de Professor, Coordenador, Responsável e Administrador só são semeados com `APP_SEED_ENABLED=true`. Casos automatizados devem criar seus próprios usuários sintéticos.
 - **Técnicas:** valor limite (VL), partição de equivalência (PE), tabela de decisão (TD) e transição de estado (TR).
 - **Identificação:** cada caso tem ID `CP-nn` e liga a uma linha do inventário (INV-nn). As transições têm IDs `TR-nn` e a tabela de decisão `TD-nn`.
