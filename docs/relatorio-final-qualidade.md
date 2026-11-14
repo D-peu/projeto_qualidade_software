@@ -2,7 +2,7 @@
 
 **Data da verificacao local:** 2026-11-14 UTC
 **Branch:** `release/rc1-blocker-fixes`
-**SHA testado:** `26f678f7e1b6b58a2984e75c841f13e0e3243ef0`
+**SHA testado e enviado:** `9cad46750b65d4de3a5d56823c270de6fa5c2fdb`
 **Decisao:** **BLOQUEAR** — ver [decisao de qualidade](decisao-qualidade.md).
 **Escopo:** verificacao local do estado desta branch; nao e aceite de producao,
 CI da `main`, analise SonarCloud ou revisao independente.
@@ -18,11 +18,15 @@ CI da `main`, analise SonarCloud ou revisao independente.
 | Testes Java | — | `./mvnw -B clean verify`: BUILD SUCCESS, 222 testes, 0 falhas, 0 erros, 0 ignorados | Passou localmente |
 | Testes Node | — | `node --test tests/*.test.js`: 19 aprovados, 0 falhas | Passou localmente |
 | Sintaxe do contrato OpenAPI | — | YAML carregado; 21 paths e 23 operacoes | Passou; nao e validacao de conformidade endpoint a endpoint |
+| Aplicacao em clone limpo | — | PostgreSQL pelo README; `GET /` e `/api/auth/csrf` responderam 200 | Passou; ambiente local usou JDK 25.0.5 |
+| CI do PR #20 | — | [Run 43534327707](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43534327707), SHA `9cad467`; Java 21, Verify, Node e upload do artifact passaram | Passou no PR, nao na `main`; SonarCloud ignorado |
 | Carga JMeter nesta sessao | — | Nao reproduzida; `target/jmeter/` ausente | Sem evidencia atual |
 
 O XML `target/site/jacoco/jacoco.xml` foi calculado pelos counters de nivel
-raiz: `LINE` 991 cobertos de 1106 e `BRANCH` 242 cobertos de 322. Os resultados
-Java/Node sao da branch local e nao devem ser atribuidos a `main`.
+raiz: `LINE` 991 cobertos de 1106 e `BRANCH` 242 cobertos de 322. A validacao
+local do clone usou JDK 25.0.5, disponivel no ambiente; o workflow remoto
+configurou Java 21 e passou para o mesmo SHA do PR. Nenhum resultado e da
+`main`.
 
 ## Requisitos
 
@@ -45,10 +49,11 @@ notificacao simulada dentro da aplicacao.
 
 | Data (UTC) | Comando | Resultado |
 |---|---|---|
-| 2026-11-14 | `./mvnw -B clean verify` | BUILD SUCCESS; 222 Java; 0 falhas/erros/ignorados; PostgreSQL/Testcontainers, WireMock e JaCoCo executados |
-| 2026-11-14 | `node --test tests/*.test.js` | 19 testes; 19 aprovados; 0 falhas |
+| 2026-11-14 | `./mvnw -B clean verify` em clone limpo de `9cad467` | BUILD SUCCESS; 222 Java; 0 falhas/erros/ignorados; PostgreSQL/Testcontainers, WireMock e JaCoCo executados |
+| 2026-11-14 | `node --test tests/*.test.js` em clone limpo | 19 testes; 19 aprovados; 0 falhas |
 | 2026-11-14 | Validacao local de `docs/openapi.yaml` com PyYAML | YAML valido; 21 rotas (`paths`), 23 operacoes |
 | 2026-11-14 | `git shortlog -sne --all` | Historico consultado para autoria; alias de identidade correlacionados; confirmar roster na secao de autoria da decisao |
+| 2026-11-14 | CI do PR #20, run 43534327707 | SHA `9cad467`; Java 21; Verify, Node e upload de artifact passaram; SonarCloud ignorado |
 
 O Surefire emitiu o aviso “going to kill self fork JVM” depois de 30 segundos.
 Nao foi encontrado `System.exit` no codigo. Uma thread nao daemon/recurso de

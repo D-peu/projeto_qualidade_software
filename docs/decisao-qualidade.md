@@ -3,7 +3,7 @@
 **Data:** 2026-11-14 UTC
 **Repositorio:** [PabloQAntj/projeto_qualidade_software](https://github.com/WesMarquess/projeto_qualidade_software)
 **Branch avaliada:** `release/rc1-blocker-fixes`
-**SHA submetido a verificacao local:** `26f678f7e1b6b58a2984e75c841f13e0e3243ef0`
+**SHA do codigo submetido a verificacao local e CI do PR:** `9cad46750b65d4de3a5d56823c270de6fa5c2fdb`
 **PR:** [#20](https://github.com/WesMarquess/projeto_qualidade_software/pull/20), base `main`, ainda sem merge nesta verificacao.
 **Tag avaliada:** nenhuma.
 
@@ -29,7 +29,7 @@ comprovada. Esta decisao nao declara o sistema pronto para producao.
 | 0 bugs/vulnerabilidades criticas | **Nao comprovado** | Nao houve analise SonarCloud nova nem Quality Gate verificavel para o SHA avaliado. Nao declarar zero bugs ou vulnerabilidades. |
 | Desempenho | **Nao reproduzido nesta sessao** | `target/jmeter/` nao existe. [Resultado JMeter](performance/resultado-01.md) e historico; nao prova capacidade atual ou de producao. |
 | Inicializacao limpa | **Passou nesta branch** | E1 executou `AplicacaoBancoLimpoPostgresTest` com Testcontainers; a inicializacao e migrations em PostgreSQL vazio passaram. A CI na `main` nao foi comprovada para essa revisao. |
-| CI e integracao na `main` | **Nao atendido / nao verificado para este SHA** | PR #20 continua aberto e sem merge observado; os resultados locais nao sao CI da `main`. |
+| CI do PR / integracao na `main` | **PR passou; main nao atendida** | [Run 43534327707](https://github.com/WesMarquess/projeto_qualidade_software/actions/runs/43534327707) terminou com sucesso no SHA `9cad467`; Java 21, Verify, Node e upload de relatorios passaram. SonarCloud foi ignorado. O PR esta aberto e pronto para revisao; `main` permanece em `3d9b5fdd7468bf8d07c784965d790e897279c093`. |
 
 ### Registros operacionais da verificacao
 
@@ -38,6 +38,14 @@ comprovada. Esta decisao nao declara o sistema pronto para producao.
   UTC; branch `release/rc1-blocker-fixes`.
 - E2: `node --test tests/*.test.js` — 19 testes aprovados, zero falhas. Data:
   2026-11-14 UTC; mesma branch.
+- E3: clone limpo do SHA `9cad467`; `docker compose up -d db`,
+  `./mvnw -B spring-boot:run`, `GET /` e `GET /api/auth/csrf` responderam 200;
+  `./mvnw -B clean verify` passou com 222 testes e os mesmos counters JaCoCo;
+  Node passou com 19 testes. O ambiente local forneceu Java 25.0.5, nao Java
+  21; o run de CI acima configura Java 21 e terminou com sucesso.
+- E4: CI do PR #20, run 43534327707, no SHA `9cad467`; job `verify` verde e
+  artifact `test-reports-43534327707-1` publicado. A etapa SonarCloud foi
+  ignorada porque nao houve analise configurada para essa execucao.
 - O log do Surefire emitiu o aviso “going to kill self fork JVM” 30 segundos
   apos `System.exit(0)`. Nao foi localizado `System.exit` no codigo; uma thread
   ou recurso ativo no encerramento e apenas hipotese, sem causa confirmada.
@@ -69,7 +77,7 @@ as linhas abaixo como declaracoes ja assinadas.
 
 | Identidade Git (commits) | Nome completo confirmado pelo integrante | Contribuicao declarada pelo integrante |
 |---|---|---|
-| PabloQAntj (38) | A confirmar | A preencher e confirmar em primeira pessoa. |
+| PabloQAntj (41) | A confirmar | A preencher e confirmar em primeira pessoa. |
 | Weslley Marques / WesMarquess (22) | A confirmar | A preencher e confirmar em primeira pessoa. |
 | PabloFerds / Pablo (17) | A confirmar | A preencher e confirmar em primeira pessoa. |
 | Pedro de Paula (11) | A confirmar | A preencher e confirmar em primeira pessoa. |
@@ -90,5 +98,6 @@ evidencia de merge e CI verde na `main`, a decisao nao muda.
 
 Repositorio publico: https://github.com/WesMarquess/projeto_qualidade_software
 — branch avaliada: `release/rc1-blocker-fixes`, SHA
-`26f678f7e1b6b58a2984e75c841f13e0e3243ef0`; **tag avaliada: nenhuma**.
+`9cad46750b65d4de3a5d56823c270de6fa5c2fdb`; **tag avaliada: nenhuma**. O CI
+do PR passou nesse SHA; ele ainda nao foi integrado na `main`.
 Decisao: **BLOQUEAR**, ate resolver as condicoes acima.

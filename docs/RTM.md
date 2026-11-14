@@ -1,18 +1,21 @@
 # Matriz única de rastreabilidade — entrega da disciplina
 
 **Revisão funcional verificada:** `release/rc1-blocker-fixes`, SHA
-`26f678f7e1b6b58a2984e75c841f13e0e3243ef0` (14/11/2026). Esta RTM é a fonte canônica; não representa merge,
+`9cad46750b65d4de3a5d56823c270de6fa5c2fdb` (14/11/2026). Esta RTM é a fonte canônica; não representa merge,
 execução de CI na `main`, Quality Gate ou aceite de produção.
 
 ## Evidências desta revisão
 
 | ID | Comando executado | Resultado | Data |
 |---|---|---|---|
-| E1 | `./mvnw -B clean verify` | `BUILD SUCCESS`; 222 testes Java, 0 falhas, 0 erros, 0 ignorados. `target/site/jacoco/jacoco.xml`: linhas 991/1106 = 89,60%; branches 242/322 = 75,16%. PostgreSQL/Testcontainers e WireMock foram executados. | 2026-11-14 UTC |
-| E2 | `node --test tests/*.test.js` | 19 testes aprovados, 0 falhas. | 2026-11-14 UTC |
+| E1 | `./mvnw -B clean verify` no clone limpo | `BUILD SUCCESS`; 222 testes Java, 0 falhas, 0 erros, 0 ignorados. `target/site/jacoco/jacoco.xml`: linhas 991/1106 = 89,60%; branches 242/322 = 75,16%. PostgreSQL/Testcontainers e WireMock executados. SHA `9cad467`; JDK local 25.0.5. | 2026-11-14 UTC |
+| E2 | `node --test tests/*.test.js` no clone limpo | 19 testes aprovados, 0 falhas. | 2026-11-14 UTC |
+| E3 | `docker compose up -d db`; `./mvnw -B spring-boot:run`; `curl` em `/` e `/api/auth/csrf` | Banco inicializado pelo README; ambas as rotas responderam HTTP 200; PostgreSQL 16.16. | 2026-11-14 UTC |
+| E4 | GitHub Actions `CI`, run `43534327707`, SHA `9cad467` | Sucesso com Java 21; Verify, Node e upload de `test-reports-43534327707-1` passaram. SonarCloud foi ignorado. | 2026-11-14 UTC |
 
-E1 e E2 foram executados localmente nesta branch. Não atribuir esses resultados
-à `main` ou à CI. “Pendente” significa que a funcionalidade descrita não está
+E1 a E3 foram executados num clone limpo desta branch, em ambiente local JDK
+25.0.5; E4 foi executado pelo CI configurado com Java 21 no PR. Nenhum resultado
+evidencia merge ou CI da `main`. “Pendente” significa que a funcionalidade descrita não está
 implementada; a aprovação da suíte completa não comprova funcionalidade
 ausente. Casos Gherkin em `docs/testes/reservas.feature` não têm runner BDD e
 não são contados como execução automatizada independente.
