@@ -1,6 +1,6 @@
 # API de Reservas
 
-**Status:** Implementacao parcial, com cadastro básico de salas, alteração de estado, filtros de catálogo e consulta de histórico
+**Status:** Implementação parcial; consultar a [RTM única](./RTM.md) para estados por requisito.
 **Versao do contrato:** 1.3.0
 **Contrato OpenAPI:** [openapi.yaml](openapi.yaml)
 
@@ -17,15 +17,18 @@ Esta API implementa apenas parte das regras previstas no PRD. O comportamento ob
 | Regra | Situacao atual |
 |---|---|
 | RN01 - Intervalo | Implementada: o início deve estar no futuro segundo o relógio de `America/Sao_Paulo`; início e término devem estar nos minutos 00 ou 30, com segundos e nanos zerados; o término deve ser posterior ao início. |
-| RN02 - Conflito de horario | Implementada para sala, docentes associados e materiais associados. Intervalos adjacentes sao aceitos. |
-| RN03 - Concorrencia | Implementada para sala, docente e material: o serviço bloqueia os registros dos recursos em ordem determinística antes de verificar conflitos; testes PostgreSQL cobrem solicitações concorrentes em salas distintas que disputam o mesmo docente/material. |
+| RN02 - Conflito de horario | Implementada para sala, docentes associados e materiais associados. Intervalos adjacentes sao aceitos. Na criação, a consulta de conflito também considera `SOLICITADA`. |
+| RN03 - Concorrencia | Os locks de PostgreSQL e testes Testcontainers protegem criação, aprovação e alteração simultâneas; no máximo uma operação conflitante é aceita. Limite: o PRD permite pedidos pendentes coincidentes, mas a criação atual recusa o segundo pedido porque inclui `SOLICITADA` na consulta de conflito. |
 | RN04 - Bloqueio/manutencao | Parcial: Administrador pode alterar o estado operacional da sala; `EM_MANUTENCAO` impede novas solicitações e aprovações. Ainda não há bloqueios por período ou alerta automático ao Responsável. |
 | RN05 - Aprovacao | Parcial: toda reserva nova só pode ser aprovada por Responsável, independentemente dos recursos; Administrador recebe 403. A aprovação de alterações de horário ainda não tem fluxo próprio. |
 | RN06 - Ciclo de estados | Parcial: as transições operacionais estão disponíveis e solicitações não decididas até o início expiram para `EXPIRADA`. A expiração é aplicada ao consultar reservas; alterações pendentes e sua expiração ainda não estão implementadas. |
 | RN07 - Proteção e auditoria | Parcial: criação, decisões, cancelamento e transições registram auditoria transacional com ator/perfil e data/hora; consultas de auditoria e histórico de alteração de horário são restritas à equipe. Alterações diretas de horário enquanto a reserva está solicitada ainda não geram um evento de auditoria. |
 | RN08 - Materiais | Parcial: materiais podem ser associados a reservas e têm consulta de catálogo. Retirada e devolução ainda não são registradas. |
-
 | RF19 / RN11 - Notificações | Parcial e divergente do PRD: o backend envia eventos de aprovação, rejeição e cancelamento por HTTP e a integração é testada com WireMock; o PRD vigente pede notificações simuladas dentro da aplicação, sem serviço externo. |
+
+O schema OpenAPI descreve `EXPIRADA` como estado consultável em
+`GET /api/reservas?status=EXPIRADA`. A expiração de novas solicitações é
+processada sob demanda nas consultas; não existe agenda independente.
 
 Na criacao, o payload precisa incluir `tipoSolicitante` (`PROFESSOR` ou `COORDENADOR`), e o backend exige correspondencia com a conta autenticada. Aprovar exige perfil `RESPONSAVEL`; Administrador recebe `403 Forbidden`, mesmo em reservas sem recurso restrito. Rejeitar aceita Responsável ou Administrador. O ID e o tipo enviados no payload precisam corresponder à conta autenticada. Solicitantes só consultam e alteram suas próprias reservas; filas de decisão são restritas a Responsável e Administrador.
 
@@ -62,6 +65,25 @@ Reservas podem incluir `professorIds` e `materialIds` opcionais. Cada professor 
 | `POST` | `/api/reservas/{reservaId}/nao-comparecimento` | Registrar ausência a partir do fim reservado | `200 OK` |
 
 Todas as rotas da API, exceto `GET /api/auth/csrf` e `POST /api/auth/login`, exigem sessão autenticada. O cadastro e a alteração de estado das salas exigem perfil Administrador; outros perfis recebem `403 Forbidden`, e chamadas sem sessão recebem `401 Unauthorized`. As consultas de auditoria e histórico de horário exigem perfil Responsável ou Administrador. Requisições de alteração também precisam enviar o token da sessão no cabeçalho `X-CSRF-Token`. O cliente do frontend faz essa troca automaticamente. O navegador precisa ser servido pela mesma aplicação/origem da API.
+
+### Códigos de erro e notificações
+
+- `400 Bad Request`: corpo ausente/malformado, parâmetro ou intervalo inválido.
+- `401 Unauthorized`: sessão ausente ou expirada; `GET /api/reservas/pendentes`
+  também exige sessão.
+- `403 Forbidden`: CSRF ausente/inválido ou perfil/identidade sem permissão.
+  Em particular, Administrador não aprova reservas; só Responsável aprova.
+- `404 Not Found`: recurso ou reserva inexistente quando a rota o exige.
+- `409 Conflict`: sobreposição, sala indisponível ou transição/estado inválido.
+
+Os exemplos de cadastro de sala, sessão e mutações correspondem aos DTOs e
+respostas exercitados por `SalaControllerTest`,
+`ReservaControllerTest`, `AutenticacaoControllerTest` e
+`ReservaNotificacaoWireMockIntegrationTest`. O teste WireMock verifica o payload
+`NotificacaoReserva` enviado ao endpoint HTTP configurado, resposta 200/corpo,
+resposta 500 e timeout. Essa integração externa existe no código, mas não
+satisfaz RF19/RN11, que especifica notificação simulada interna; não é declarada
+como requisito implementado.
 
 ### Contas de demonstração
 

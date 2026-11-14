@@ -3,13 +3,14 @@ info:
   title: API de Reservas de Salas
   version: 1.3.0
   description: >-
-    API para autenticar usuarios por sessao HTTP, cadastrar salas como
-    Administrador e solicitar/acompanhamento de reservas de salas. Requisicoes
-    mutaveis exigem token CSRF. As regras e limitacoes estao descritas em
-    api-reservas.md. Apos aprovar, rejeitar ou cancelar uma reserva, o sistema
-    envia o evento NotificacaoReserva para o endpoint configurado em
-    notificacao.url. Falhas e timeouts da notificacao sao registrados e nao
-    revertem a transicao da reserva.
+    API para autenticar usuarios por sessao HTTP, administrar parcialmente salas
+    e acompanhar reservas. Requisicoes mutaveis exigem token CSRF. A aprovacao
+    exige perfil Responsavel; Administrador recebe 403. Conflitos, recursos
+    indisponiveis e transicoes invalidas retornam 409. O cliente atual envia
+    NotificacaoReserva por HTTP externo apos aprovacao, rejeicao ou
+    cancelamento; erros/timeout nao revertem a transicao. Esse comportamento e
+    divergente de RF19/RN11, que exige notificacao simulada dentro do sistema.
+    Ver rotas, regras e limitacoes em api-reservas.md.
 servers:
   - url: http://localhost:8080
     description: Ambiente local
@@ -144,6 +145,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Sala'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
     post:
@@ -242,7 +245,7 @@ paths:
           $ref: '#/components/responses/NaoAutenticado'
   /api/materiais:
     get:
-      tags: [Salas]
+      tags: [Recursos]
       summary: Listar materiais disponíveis para alocação
       operationId: listarMateriais
       responses:
@@ -276,6 +279,7 @@ paths:
               - REJEITADA
               - CANCELADA
               - NAO_COMPARECEU
+              - EXPIRADA
       responses:
         '200':
           description: Reservas ordenadas pela data da solicitação, da mais antiga para a mais recente
@@ -289,6 +293,8 @@ paths:
           $ref: '#/components/responses/RequisicaoInvalida'
         '401':
           $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/AcessoNegado'
     post:
       tags: [Reservas]
       summary: Solicitar reserva de sala

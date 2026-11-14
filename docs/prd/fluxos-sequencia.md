@@ -1,132 +1,184 @@
-# Fluxos - Diagramas de Sequencia
+# Sequências críticas — estado implementado e lacunas
 
-Diagramas dos fluxos criticos, atualizados conforme as decisoes do [PRD principal](../prd.md). Os participantes representam papeis e responsabilidades, sem definir arquitetura tecnica.
+**Revisão representada:** branch `release/rc1-blocker-fixes`, verificada em
+2026-11-14. Estes diagramas descrevem o comportamento atual; notas destacam
+onde ele difere do PRD. Os cenários Gherkin relacionados são especificações,
+não execução BDD independente.
 
-## 1. Solicitar reserva e validar disponibilidade (RF06-RF11, RN01-RN05)
+## 1. Solicitar e aprovar reserva (RF06–RF11, RF14–RF15)
 
 ```mermaid
 sequenceDiagram
     actor S as Solicitante
-    participant APP as Aplicacao
-    actor R as Responsavel
+    actor R as Responsável
+    participant UI as Interface web
+    participant API as Controllers / interceptor
+    participant SV as ReservaService
+    participant DB as PostgreSQL 16
+    participant NC as NotificacaoClient
+    participant EXT as Serviço HTTP externo
 
-    S->>APP: Informa recurso, data futura, inicio e termino
-    APP->>APP: Valida intervalo, incremento de 30 min, manutencao e conflitos confirmados
-    alt Intervalo invalido, conflito confirmado ou recurso indisponivel
-        APP-->>S: Recusa e informa o motivo
-    else Dados validos
-        APP->>APP: Registra solicitacao como SOLICITADA
-        APP-->>R: Disponibiliza solicitacao para analise
-        R->>APP: Aprova ou rejeita
-        APP->>APP: Revalida conflitos e manutencao antes de aprovar
-        alt Ainda disponivel
-            APP->>APP: Atualiza estado e registra auditoria
-            APP-->>S: Informa a decisao
-        else Conflito ou manutencao
-            APP-->>R: Impede aprovacao e informa indisponibilidade
-            APP-->>S: Informa que a solicitacao nao foi aprovada
+    S->>UI: Informa sala, intervalo e recursos
+    UI->>API: POST /api/reservas + sessão + CSRF
+    API->>SV: Solicitar reserva autenticada
+    SV->>SV: Valida identidade, intervalo e dados
+    SV->>DB: Bloqueia recursos em ordem; consulta conflitos
+    DB-->>SV: Recurso disponível ou conflito
+    alt Dados válidos e sem conflito
+        SV->>DB: Grava SOLICITADA e evento de auditoria
+        DB-->>SV: Reserva persistida
+        SV-->>API: Reserva criada
+        API-->>UI: 201 Created + Location
+        UI-->>S: Exibe solicitação
+    else Inválido, indisponível ou conflitante
+        SV-->>API: Erro de validação, permissão ou conflito
+        API-->>UI: 400, 403, 404 ou 409
+        UI-->>S: Exibe mensagem de erro
+    end
+
+    R->>UI: Decide uma solicitação pendente
+    UI->>API: POST /api/reservas/{id}/aprovacao + sessão + CSRF
+    API->>SV: Aprovar como Responsável
+    SV->>DB: Bloqueia reserva/sala e revalida disponibilidade confirmada
+    DB-->>SV: Disponibilidade atual
+    alt Responsável autorizado e sem conflito
+        SV->>DB: Grava APROVADA e auditoria na transação
+        SV->>NC: Envia evento de mudança de estado
+        NC->>EXT: HTTP POST NotificacaoReserva
+        alt Integração responde 2xx
+            EXT-->>NC: Resposta recebida
+        else HTTP 500 ou timeout
+            EXT-->>NC: Falha; log; não desfaz estado salvo
         end
-        opt Nenhuma decisao ate o inicio
-            APP->>APP: Altera estado para EXPIRADA, registra auditoria e libera recursos
-            APP-->>S: Informa expiracao do pedido
-        end
+        SV-->>API: Reserva aprovada
+        API-->>UI: 200 OK
+    else Perfil inválido ou recurso indisponível
+        SV-->>API: 403 ou 409; sem aprovação
+        API-->>UI: Erro documentado
     end
 ```
 
-Todas as reservas novas exigem aprovacao, independentemente da classificacao de restricao. Solicitacoes pendentes podem coincidir; a revalidacao no momento da aprovacao impede que mais de uma reserva conflitante seja confirmada. Se o pedido nao for decidido ate o inicio, ele expira como `EXPIRADA`, gera auditoria e libera os recursos. Notificacoes sao simuladas dentro do sistema.
+O fluxo normal rejeita Administrador na aprovação, independentemente do recurso
+(403). A revalidação e o estado persistido são cobertos por testes de serviço,
+PostgreSQL e HTTP autenticado. O envio HTTP ocorre dentro da operação do serviço;
+falhas são capturadas e não revertem a mudança. Esse cliente externo diverge de
+RF19/RN11 e não equivale a notificação interna.
 
-## 2. Solicitacoes simultaneas para o mesmo recurso (RF08-RF09, RN02-RN03)
+## 2. Solicitações concorrentes para a mesma sala/intervalo (RF08–RF09, RN02–RN03)
 
 ```mermaid
 sequenceDiagram
     actor S1 as Solicitante A
     actor S2 as Solicitante B
-    participant APP as Aplicacao
-    participant AGENDA as Agenda de recursos
-    actor R as Responsavel
+    participant API as ReservaController
+    participant SV as ReservaService
+    participant DB as PostgreSQL 16
 
-    S1->>APP: Solicita recurso R no intervalo T
-    S2->>APP: Solicita recurso R no intervalo T
-    APP->>AGENDA: Verifica reservas confirmadas
-    AGENDA-->>APP: Nenhuma reserva confirmada no intervalo
-    APP-->>S1: Registra pedido pendente
-    APP-->>S2: Registra pedido pendente
-    R->>APP: Tenta aprovar uma solicitacao
-    APP->>AGENDA: Revalida disponibilidade de R no intervalo T
-    AGENDA-->>APP: Reserva aprovada ocupa R no intervalo T
-    R->>APP: Tenta aprovar a outra solicitacao
-    APP->>AGENDA: Revalida novamente a disponibilidade
-    AGENDA-->>APP: Conflito com reserva aprovada
-    APP-->>R: Impede a segunda aprovacao
+    par Solicitação A
+        S1->>API: POST /api/reservas (sala R, intervalo T)
+        API->>SV: Validar e solicitar
+        SV->>DB: Lock pessimista da sala R
+        DB-->>SV: Lock concedido
+        SV->>DB: Verificar conflitos incluindo SOLICITADA
+        SV->>DB: Gravar única reserva vencedora
+        DB-->>SV: Reserva persistida
+        SV-->>API: Reserva criada
+        API-->>S1: 201 Created
+    and Solicitação B simultânea
+        S2->>API: POST /api/reservas (sala R, intervalo T)
+        API->>SV: Validar e solicitar
+        SV->>DB: Aguardar lock da sala R
+        DB-->>SV: Lock liberado; conflito com reserva persistida
+        SV-->>API: Conflito
+        API-->>S2: 409 Conflict
+    end
 ```
 
-Toda solicitacao exige aprovacao do Responsavel. A verificacao/confirmacao deve ser atomica sob concorrencia: apenas uma solicitacao conflitante pode ser aprovada. Intervalos adjacentes, sem sobreposicao, podem ser confirmados.
+`ReservaPostgresIntegrationTest.deveAceitarSomenteUmaReservaEmSolicitacoesConcorrentesComConflito`
+usa `ExecutorService`, `CountDownLatch` e Testcontainers; o resultado esperado
+é no máximo uma criação aceita. A implementação atual também conta estados
+`SOLICITADA` no conflito da criação. Isso impede criar pedidos pendentes
+coincidentes, embora RN03 do PRD permita pendências coincidentes e peça
+revalidação somente ao aprovar. Essa diferença permanece parcial na RTM.
 
-## 3. Alterar ou cancelar uma reserva (RF06, RF10, RF14-RF15, RN07, RN09-RN10)
+## 3. Aprovações concorrentes de pedidos já existentes (RF09, RN03)
+
+```mermaid
+sequenceDiagram
+    actor R1 as Responsável A
+    actor R2 as Responsável B
+    participant API as ReservaController
+    participant SV as ReservaService
+    participant DB as PostgreSQL 16
+
+    Note over DB: Duas SOLICITADA conflitantes preparadas para o teste de integração
+    par Aprovação A
+        R1->>API: POST /{id-A}/aprovacao
+        API->>SV: Aprovar como Responsável
+        SV->>DB: Bloquear sala e revalidar estados confirmados
+        SV->>DB: Gravar APROVADA + auditoria
+        DB-->>SV: Transação efetivada
+        SV-->>API: Reserva aprovada
+        API-->>R1: 200 OK
+    and Aprovação B concorrente
+        R2->>API: POST /{id-B}/aprovacao
+        API->>SV: Aprovar como Responsável
+        SV->>DB: Esperar lock e consultar estados confirmados
+        DB-->>SV: Conflito com A aprovada
+        SV-->>API: Conflito; B continua SOLICITADA
+        API-->>R2: 409 Conflict
+    end
+```
+
+Teste: `ReservaPostgresIntegrationTest.deveAprovarNoMaximoUmaReservaConflitanteEmOperacoesConcorrentes`.
+Os pedidos sobrepostos são fixtures já persistidas; a API de criação atual
+recusa o segundo pedido pendente sobreposto, conforme a observação da seção 2.
+
+## 4. Alterar horário e cancelar — comportamento presente (RF06, RF10, RF14)
 
 ```mermaid
 sequenceDiagram
     actor S as Solicitante
-    participant APP as Aplicacao
-    actor R as Responsavel
+    participant API as ReservaController
+    participant SV as ReservaService
+    participant DB as PostgreSQL 16
+    participant NC as NotificacaoClient
+    participant EXT as Serviço HTTP externo
 
-    alt Alteracao de data/horario
-        S->>APP: Solicita alteracao ate duas horas antes do inicio original
-        APP->>APP: Valida prazo, intervalo e conflitos
-        APP->>APP: Registra alteracao pendente; mantem horario original
-        APP-->>R: Disponibiliza alteracao para decisao
-        R->>APP: Aprova ou rejeita ate o inicio original
-        APP->>APP: Revalida conflito antes de aplicar
-        alt Aprovada dentro do prazo e ainda disponivel
-            APP->>APP: Substitui horario e registra auditoria
-        else Rejeitada, conflitada ou prazo expirado
-            APP->>APP: Mantem horario original e registra decisao/expiracao
-        end
-    else Cancelamento
-        S->>APP: Solicita cancelamento ate duas horas antes do inicio
-        APP->>APP: Valida limite e altera estado para CANCELADA
-        APP->>APP: Registra usuario e data/hora da mudanca
-        APP-->>S: Confirma cancelamento
+    S->>API: PUT /api/reservas/{id}/horario + sessão/CSRF
+    API->>SV: Alterar horário de reserva própria
+    SV->>DB: Bloquear sala; validar SOLICITADA, intervalo e conflitos
+    alt Válido
+        SV->>DB: Atualizar horário diretamente
+        DB-->>S: 200 OK (sem etapa de aprovação pendente)
+    else Inválido ou conflita
+        SV-->>S: 403 ou 409
     end
+
+    S->>API: POST /api/reservas/{id}/cancelamento + sessão/CSRF
+    API->>SV: Cancelar reserva própria
+    SV->>DB: Validar estado e gravar CANCELADA + auditoria
+    SV->>NC: Enviar NotificacaoReserva
+    NC->>EXT: HTTP POST externo
+    SV-->>S: 200 OK
 ```
 
-Cancelamento pelo Solicitante nao exige aprovacao e pode ser feito mesmo para reserva aprovada, desde que respeitado o limite de duas horas. Apos o inicio, a reserva nao pode ser apagada. Justificativa de cancelamento nao e obrigatoria.
+**Lacunas:** alterar horário aplica a mudança diretamente a uma reserva
+`SOLICITADA`, sem pedido separado, aprovação do Responsável ou trilha própria
+de alteração. O prazo de duas horas definido por RN09/RN10 também não está
+implementado. Não desenhar esses passos como comportamento disponível.
 
-## 4. Manutencao de recurso (RF04, RF11, RN04)
+## 5. Manutenção atual
 
-```mermaid
-sequenceDiagram
-    actor A as Administrador
-    participant APP as Aplicacao
-    actor R as Responsavel
+O Administrador pode alterar o estado operacional da sala por
+`PUT /api/salas/{salaId}/status`. Solicitação ou aprovação de sala não
+disponível resulta em 409. Registros existentes são preservados. Não existe
+agenda de manutenção por período nem alerta automático ao Responsável; esses
+passos do fluxo originalmente planejado estão pendentes.
 
-    A->>APP: Marca recurso como em manutencao
-    APP->>APP: Bloqueia novas reservas e preserva registros existentes
-    APP-->>R: Emite alerta simulado sobre reservas/solicitacoes existentes
-    R->>APP: Avalia cada caso existente
-```
+## 6. Fluxos ainda sem sequência de execução
 
-## 5. Retirada e devolucao de material (RF13, RN08)
-
-```mermaid
-sequenceDiagram
-    actor R as Responsavel
-    participant APP as Aplicacao
-
-    R->>APP: Consulta material associado a reserva
-    R->>APP: Registra retirada
-    APP->>APP: Registra evento e horario da retirada
-    R->>APP: Registra devolucao
-    APP->>APP: Registra evento e horario da devolucao
-    APP-->>R: Exibe movimentacao atualizada
-```
-
-## Cobertura dos fluxos
-
-| Fluxo | Requisitos | Regras de negocio |
-|---|---|---|
-| Solicitacao, aprovacao e disponibilidade | RF06-RF11 | RN01-RN05 |
-| Concorrencia de reserva | RF08-RF09 | RN02-RN03 |
-| Alteracao e cancelamento | RF06, RF10, RF14-RF15 | RN07, RN09-RN10 |
-| Manutencao | RF04, RF11 | RN04 |
-| Movimentacao de material | RF13-RF14 | RN07-RN08 |
+Não há fluxo implementado de retirada/devolução de materiais (RF13), relatórios
+de utilização (RF16), notificação interna (RF19/RN11), gestão completa de
+recursos/usuários (RF03/RF04) ou aprovação de alteração de horário (RN10/RN12).
+O status e os riscos estão na [RTM única](../RTM.md).

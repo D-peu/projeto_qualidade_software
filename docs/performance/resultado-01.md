@@ -2,6 +2,8 @@
 
 **Executado em:** 2026-11-13 (UTC)  
 **Escopo:** baseline local exploratório da API; não representa ambiente de produção nem aprovação de meta oficial.
+**Estado nesta revisão:** resultado histórico; não reproduzido em 2026-11-14.
+Os JTL compactados e versionados abaixo são preservados sem alteração.
 
 ## Ambiente
 
