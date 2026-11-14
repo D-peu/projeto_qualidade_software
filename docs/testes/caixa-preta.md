@@ -1,5 +1,14 @@
 # Casos de Teste de Caixa Preta
 
+## Evidência desta revisão
+
+Em 2026-11-14, `./mvnw -B clean verify` terminou com `BUILD SUCCESS` (222 testes
+Java, zero falhas/erros/ignorados). O XML JaCoCo reportou 89,60% de linhas
+(991/1106) e 75,16% de branches (242/322). `node --test tests/*.test.js`
+passou com 19 testes e zero falhas. Os comandos foram executados nesta branch;
+não são resultado de CI nem da `main`. Os casos de execução listados abaixo
+formam o inventário e não significam que todos tenham sido automatizados.
+
 ## 1. Escopo e premissas
 
 Estes casos verificam a API de reservas **somente pelo contrato** (`docs/openapi.yaml` e `docs/api-reservas.md`) e pelas regras do `docs/testes/inventario-regras.md`. Nenhum resultado esperado depende da estrutura interna das classes.
@@ -350,8 +359,27 @@ A classificação de recurso restrito é demonstrativa; não altera quem pode ap
 | CP-126 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo professor em outra sala | 409; E continua SOLICITADA |
 | CP-127 | PE | E SOLICITADA sobrepõe reserva APROVADA do mesmo material em outra sala | 409; E continua SOLICITADA |
 | CP-128 | C | Duas reservas SOLICITADAS preexistentes e conflitantes são aprovadas simultaneamente no PostgreSQL | Exatamente uma fica APROVADA; a outra recebe 409 e permanece SOLICITADA |
+| CP-162 | C | Duas reservas SOLICITADAS da mesma sala, em horários diferentes, são alteradas simultaneamente para o mesmo intervalo no PostgreSQL | Exatamente uma alteração é persistida; a outra recebe conflito; somente uma reserva ocupa o intervalo de destino |
 
-## 15. Casos parcialmente cobertos ou que não podem ser executados hoje
+### Proteção de rotas por sessão (RF01, RF02, INV-08)
+
+`AutenticacaoWebConfig` aplica o interceptor a `/api/**`. Sem autenticação, só `GET /api/auth/csrf` e `POST /api/auth/login` passam pela checagem de sessão; o login mutável ainda exige token CSRF válido. Arquivos estáticos (`/`, `/index.html`, `/css/**`, `/js/**`) não estão sob `/api/**`. Todas as outras rotas da API abaixo exigem sessão; os métodos mutáveis também exigem CSRF.
+
+| Grupo/rota protegida | Métodos | Teste automatizado sem autenticação |
+|---|---|---|
+| `/api/auth/me` | GET | `AutenticacaoRotasControllerTest.getApiSemSessaoRetorna401` |
+| `/api/auth/logout` | POST | `AutenticacaoRotasControllerTest.mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/salas` | GET, POST | Mesmos testes parametrizados; mutação envia CSRF anônimo válido |
+| `/api/salas/{salaId}/status` | PUT | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/professores`, `/api/materiais` | GET | `getApiSemSessaoRetorna401` |
+| `/api/reservas`, `/api/reservas?status=...`, `/api/reservas/pendentes`, `/api/reservas/{id}`, `/api/reservas/solicitante/{id}`, `/api/reservas/{id}/auditoria`, `/api/reservas/{id}/historico-horario` | GET | `getApiSemSessaoRetorna401`; inclui explicitamente `/api/reservas/pendentes` |
+| `/api/reservas` | POST | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/reservas/{id}/horario` | PUT | `mutacaoComCsrfMasSemLoginRetorna401` |
+| `/api/reservas/{id}/cancelamento`, `/aprovacao`, `/rejeicao`, `/iniciar`, `/concluir`, `/nao-comparecimento` | POST | `mutacaoComCsrfMasSemLoginRetorna401` |
+
+`AutenticacaoRotasControllerTest` executa 10 leituras e 11 mutações (com CSRF anônimo válido) e espera 401 em todas. `AutenticacaoControllerTest.loginCriaSessaoEPermiteRestaurarUsuarioAutenticado` confirma o acesso público ao fluxo de token/login e o acesso com sessão. Os testes não são um E2E de navegador; a delimitação acima é confirmada pelo interceptor e pelo matcher de rotas do Spring MVC.
+
+## 16. Casos parcialmente cobertos ou que não podem ser executados hoje
 
 | Assunto | Motivo | Linha do inventário |
 |---|---|---|
@@ -368,19 +396,20 @@ A classificação de recurso restrito é demonstrativa; não altera quem pode ap
 
 Estes itens permanecem registrados como **bloqueados ou pendentes**. Eles não podem ser reportados como aprovados.
 
-## 16. Resumo
+## 17. Resumo
 
 | Grupo | Quantidade |
 |---|---|
-| Casos de execução (CP-01 a CP-159) | 159 |
+| Casos de execução (CP-01 a CP-162) | 162 |
 | Transições de estado (TR-01 a TR-19) | 19 |
 | Tabela de decisão (TD-01 a TD-04) | 4 |
 | Executáveis com estado preparado no banco | CP-38, CP-45, CP-125–128 e CP-138–149 |
 | Com decisão pendente | Nenhuma regra de aprovação; pendências funcionais estão na seção 15 |
 | Com verificação adicional | CP-80 e CP-83 |
-| Casos novos com execução automatizada nesta revisão | CP-150–159 |
+| Casos novos com execução automatizada nesta revisão | CP-150–162 |
+| Rotas protegidas testadas sem sessão | 21 operações: 10 GET e 11 mutações com token CSRF anônimo válido |
 
-## 17. Instalação limpa e inicialização (RNF-ISO-08)
+## 18. Instalação limpa e inicialização (RNF-ISO-08)
 
 | ID | Técnica | Entrada | Resultado esperado |
 |---|---|---|---|

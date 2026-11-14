@@ -17,6 +17,13 @@ Feature: Conflitos e concorrência em reservas de salas
     Then ambas as solicitacoes sao aceitas
     And existem duas reservas persistidas para aqueles intervalos
 
+  Scenario: Apenas uma alteracao simultanea pode ocupar o mesmo horario
+    Given existem duas reservas solicitadas da mesma sala em horarios diferentes
+    When duas alteracoes simultaneas movem as reservas para o mesmo horario
+    Then uma alteracao e aceita
+    And a outra alteracao e rejeitada por conflito
+    And somente uma reserva persiste no horario de destino
+
   Scenario Outline: Uma reserva em estado que ocupa a sala bloqueia sobreposicao
     Given existe uma reserva na mesma sala com status <status>
     When uma solicitacao para um intervalo sobreposto e processada
@@ -43,6 +50,7 @@ Feature: Conflitos e concorrência em reservas de salas
   # Especificacao Gherkin vinculada a testes JUnit existentes; nao executada por runner BDD.
   # Testes: ReservaPostgresIntegrationTest.deveAceitarSomenteUmaReservaEmSolicitacoesConcorrentesComConflito
   #         ReservaPostgresIntegrationTest.deveAceitarSolicitacoesConcorrentesParaIntervalosNaoSobrepostos
+  #         ReservaPostgresIntegrationTest.deveAceitarNoMaximoUmaAlteracaoConcorrenteParaMesmoHorario
   #         ReservaPostgresIntegrationTest.deveBloquearSomenteEstadosQueOcupamASala
 
   Scenario Outline: Somente Responsavel aprova qualquer reserva

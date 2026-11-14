@@ -22,6 +22,7 @@ import br.com.projeto_qualidade_software.projeto.security.PerfilUsuario;
 import br.com.projeto_qualidade_software.projeto.security.UsuarioAutenticado;
 import br.com.projeto_qualidade_software.projeto.exceptions.AcessoNegadoException;
 import br.com.projeto_qualidade_software.projeto.services.ReservaService;
+import br.com.projeto_qualidade_software.projeto.services.NotificacaoClient;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
@@ -35,6 +36,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -128,6 +130,9 @@ class ReservaPostgresIntegrationTest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoBean
+    private NotificacaoClient notificacaoClient;
 
     @AfterEach
     void limparContextoAutenticacao() {
@@ -240,6 +245,42 @@ class ReservaPostgresIntegrationTest {
             );
         } finally {
             limparFixtureAprovacaoConcorrente(fixture);
+        }
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("CP-162 / RF06 / RF08 / RF09 / RN03 / INV-03 - Apenas uma alteração concorrente aceita o mesmo horário")
+    void deveAceitarNoMaximoUmaAlteracaoConcorrenteParaMesmoHorario()
+            throws Exception {
+        FixtureAlteracaoConcorrente fixture = criarFixtureAlteracaoConcorrente();
+        LocalDateTime novoInicio = FIM.plusHours(2);
+        LocalDateTime novoFim = novoInicio.plusHours(1);
+        try {
+            List<ResultadoConcorrencia> resultados = alterarHorariosSimultaneamente(
+                    fixture,
+                    novoInicio,
+                    novoFim
+            );
+
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.reserva() != null)
+                    .count());
+            assertEquals(1, resultados.stream()
+                    .filter(resultado -> resultado.conflito() != null)
+                    .count());
+            assertEquals(
+                    1L,
+                    reservaRepository.contarConflitos(
+                            fixture.salaId(),
+                            STATUS_QUE_OCUPAM_SALA,
+                            novoInicio,
+                            novoFim,
+                            null
+                    )
+            );
+        } finally {
+            limparFixtureAlteracaoConcorrente(fixture);
         }
     }
 
@@ -796,6 +837,53 @@ class ReservaPostgresIntegrationTest {
         });
     }
 
+    private FixtureAlteracaoConcorrente criarFixtureAlteracaoConcorrente() {
+        return novaTransacao().execute(status -> {
+            Sala sala = salvarSala();
+            Solicitante primeiroSolicitante = salvarSolicitante();
+            Solicitante segundoSolicitante = salvarSolicitante();
+            LocalDateTime segundoInicio = FIM.plusHours(1);
+            Reserva primeira = salvarReserva(
+                    sala, primeiroSolicitante, INICIO, FIM, StatusReserva.SOLICITADA
+            );
+            Reserva segunda = salvarReserva(
+                    sala,
+                    segundoSolicitante,
+                    segundoInicio,
+                    segundoInicio.plusHours(1),
+                    StatusReserva.SOLICITADA
+            );
+            return new FixtureAlteracaoConcorrente(
+                    sala.getId(),
+                    primeira.getId(),
+                    segunda.getId(),
+                    primeiroSolicitante.getId(),
+                    segundoSolicitante.getId()
+            );
+        });
+    }
+
+    private void limparFixtureAlteracaoConcorrente(FixtureAlteracaoConcorrente fixture) {
+        novaTransacao().executeWithoutResult(status -> {
+            jdbcTemplate.update(
+                    "delete from auditorias_reserva where reserva_id in (?, ?)",
+                    fixture.primeiraReservaId(),
+                    fixture.segundaReservaId()
+            );
+            jdbcTemplate.update(
+                    "delete from reservas where id in (?, ?)",
+                    fixture.primeiraReservaId(),
+                    fixture.segundaReservaId()
+            );
+            jdbcTemplate.update(
+                    "delete from solicitantes where id in (?, ?)",
+                    fixture.primeiroSolicitanteId(),
+                    fixture.segundoSolicitanteId()
+            );
+            jdbcTemplate.update("delete from salas where id = ?", fixture.salaId());
+        });
+    }
+
     private FixtureConcorrenciaRecursos criarFixtureConcorrenciaRecursos() {
         return novaTransacao().execute(status -> {
             Sala primeiraSala = salvarSala();
@@ -1017,6 +1105,69 @@ class ReservaPostgresIntegrationTest {
         }
     }
 
+    private List<ResultadoConcorrencia> alterarHorariosSimultaneamente(
+            FixtureAlteracaoConcorrente fixture,
+            LocalDateTime inicio,
+            LocalDateTime fim
+    ) throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch prontas = new CountDownLatch(2);
+        CountDownLatch iniciar = new CountDownLatch(1);
+        List<Future<ResultadoConcorrencia>> tarefas = new ArrayList<>(2);
+        try {
+            tarefas.add(executor.submit(() -> alterarAposBarreira(
+                    fixture.primeiraReservaId(),
+                    fixture.primeiroSolicitanteId(),
+                    inicio,
+                    fim,
+                    prontas,
+                    iniciar
+            )));
+            tarefas.add(executor.submit(() -> alterarAposBarreira(
+                    fixture.segundaReservaId(),
+                    fixture.segundoSolicitanteId(),
+                    inicio,
+                    fim,
+                    prontas,
+                    iniciar
+            )));
+
+            assertTrue(prontas.await(10, TimeUnit.SECONDS),
+                    "As duas threads devem estar prontas antes da liberação.");
+            iniciar.countDown();
+            return List.of(
+                    obterResultado(tarefas.get(0)),
+                    obterResultado(tarefas.get(1))
+            );
+        } finally {
+            iniciar.countDown();
+            encerrarExecutor(executor);
+        }
+    }
+
+    private ResultadoConcorrencia alterarAposBarreira(
+            Long reservaId,
+            Long solicitanteId,
+            LocalDateTime inicio,
+            LocalDateTime fim,
+            CountDownLatch prontas,
+            CountDownLatch iniciar
+    ) throws InterruptedException, TimeoutException {
+        prontas.countDown();
+        if (!iniciar.await(10, TimeUnit.SECONDS)) {
+            throw new TimeoutException("A liberação das alterações concorrentes expirou.");
+        }
+
+        try {
+            Reserva reserva = reservaService.alterarHorarioReserva(
+                    reservaId, solicitanteId, inicio, fim
+            );
+            return new ResultadoConcorrencia(reserva, null);
+        } catch (IllegalStateException conflito) {
+            return new ResultadoConcorrencia(null, conflito);
+        }
+    }
+
     private void encerrarExecutor(ExecutorService executor) throws InterruptedException {
         executor.shutdown();
         boolean terminou;
@@ -1134,6 +1285,15 @@ class ReservaPostgresIntegrationTest {
     }
 
     private record FixtureConcorrencia(Long salaId, Long solicitanteId) {
+    }
+
+    private record FixtureAlteracaoConcorrente(
+            Long salaId,
+            Long primeiraReservaId,
+            Long segundaReservaId,
+            Long primeiroSolicitanteId,
+            Long segundoSolicitanteId
+    ) {
     }
 
     private record FixtureConcorrenciaRecursos(

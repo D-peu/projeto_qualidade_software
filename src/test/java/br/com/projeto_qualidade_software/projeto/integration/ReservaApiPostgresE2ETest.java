@@ -12,6 +12,7 @@ import br.com.projeto_qualidade_software.projeto.enums.TipoSolicitante;
 import br.com.projeto_qualidade_software.projeto.repositories.ReservaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SalaRepository;
 import br.com.projeto_qualidade_software.projeto.repositories.SolicitanteRepository;
+import br.com.projeto_qualidade_software.projeto.services.NotificacaoClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
@@ -105,6 +107,9 @@ class ReservaApiPostgresE2ETest {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoBean
+    private NotificacaoClient notificacaoClient;
 
     private Long salaId;
     private Long solicitanteId;
